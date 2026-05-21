@@ -435,6 +435,7 @@ export const ZKLoanProvider: React.FC<Readonly<ZKLoanProviderProps>> = ({ logger
         compiledContract: zkLoanCompiledContract,
         privateStateId: 'zkLoanCreditScorerPrivateState',
         initialPrivateState: privateState,
+        args: [], // constructor takes no arguments
       });
 
       const deployedAddress = deployed.deployTxData.public.contractAddress;

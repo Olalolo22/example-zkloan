@@ -121,6 +121,7 @@ export const deploy = async (
     compiledContract: zkLoanCompiledContract,
     privateStateId: 'zkLoanCreditScorerPrivateState',
     initialPrivateState: privateState,
+    args: [], // constructor takes no arguments
   });
   logger.info(`Deployed contract at address: ${contract.deployTxData.public.contractAddress}`);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

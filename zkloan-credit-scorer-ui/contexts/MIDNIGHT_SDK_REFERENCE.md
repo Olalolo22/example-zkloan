@@ -714,19 +714,21 @@ function calculateTier(profile: { creditScore: number; monthlyIncome: number; mo
 
 ```compact
 export circuit requestLoan(amountRequested: Uint<16>, secretPin: Uint<16>): [] {
-    const zwapPublicKey = ownPublicKey();
-    const requesterPubKey = publicKey(zwapPublicKey.bytes, secretPin);
+    // Caller identity derives from the witness secret + PIN, never ownPublicKey()
+    const requesterPubKey = deriveUserPublicKey(getUserSecret(), secretPin);
+    const disclosed = disclose(requesterPubKey);
 
     // Safety checks
-    assert(!blacklist.member(zwapPublicKey), "Requester is blacklisted");
-    assert(!onGoingPinMigration.member(disclose(requesterPubKey)), "PIN migration in progress");
+    assert(!blacklist.member(disclosed), "Requester is blacklisted");
+    assert(!onGoingPinMigration.member(disclosed.bytes), "PIN migration in progress");
 
-    // Private evaluation
-    const [topTierAmount, status] = evaluateApplicant();
+    // Private evaluation, bound to this caller's derived identity
+    const userPubKeyHash = transientHash<Bytes<32>>(disclosed.bytes);
+    const [topTierAmount, status] = evaluateApplicant(userPubKeyHash);
 
     // Selective disclosure
     createLoan(
-        disclose(requesterPubKey),
+        disclosed.bytes,
         amountRequested,
         disclose(topTierAmount),
         disclose(status)

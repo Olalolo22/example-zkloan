@@ -130,10 +130,10 @@ Notice how `amountRequested` is a public parameter (the user openly states how m
 Compact provides familiar data structures for on-chain state:
 
 ```compact
-export ledger blacklist: Set<ZswapCoinPublicKey>;
+export ledger blacklist: Set<UserPublicKey>;
 export ledger loans: Map<Bytes<32>, Map<Uint<16>, LoanApplication>>;
 export ledger onGoingPinMigration: Map<Bytes<32>, Uint<16>>;
-export ledger admin: ZswapCoinPublicKey;
+export ledger contractAdmin: AdminPublicKey;
 ```
 
 - **Set**: Unordered collection of unique values (used for blacklist)
@@ -240,30 +240,31 @@ ZKLoan solves this with a pattern that processes a fixed batch per transaction a
 
 ```compact
 export circuit changePin(oldPin: Uint<16>, newPin: Uint<16>): [] {
-    const oldPk = publicKey(zwapPublicKey.bytes, oldPin);
-    const newPk = publicKey(zwapPublicKey.bytes, newPin);
+    // Identity derives from the witness secret + PIN, never from ownPublicKey()
+    const oldPk = disclose(deriveUserPublicKey(getUserSecret(), oldPin)).bytes;
+    const newPk = disclose(deriveUserPublicKey(getUserSecret(), newPin)).bytes;
 
     // Track migration progress in ledger state
-    if (!onGoingPinMigration.member(disclose(oldPk))) {
-        onGoingPinMigration.insert(disclose(oldPk), 0);
+    if (!onGoingPinMigration.member(oldPk)) {
+        onGoingPinMigration.insert(oldPk, 0);
     }
 
-    const lastMigrated = onGoingPinMigration.lookup(disclose(oldPk));
+    const lastMigrated = onGoingPinMigration.lookup(oldPk);
 
     // Process exactly 5 loans per transaction (fixed iteration)
     for (const i of 0..5) {
-        if (onGoingPinMigration.member(disclose(oldPk))) {
+        if (onGoingPinMigration.member(oldPk)) {
             const sourceId = (lastMigrated + i + 1) as Uint<16>;
 
-            if (loans.lookup(disclose(oldPk)).member(sourceId)) {
+            if (loans.lookup(oldPk).member(sourceId)) {
                 // Migrate this loan
-                const loan = loans.lookup(disclose(oldPk)).lookup(sourceId);
-                loans.lookup(disclose(newPk)).insert(destinationId, disclose(loan));
-                loans.lookup(disclose(oldPk)).remove(sourceId);
-                onGoingPinMigration.insert(disclose(oldPk), sourceId);
+                const loan = loans.lookup(oldPk).lookup(sourceId);
+                loans.lookup(newPk).insert(destinationId, disclose(loan));
+                loans.lookup(oldPk).remove(sourceId);
+                onGoingPinMigration.insert(oldPk, sourceId);
             } else {
                 // No more loans - clean up
-                onGoingPinMigration.remove(disclose(oldPk));
+                onGoingPinMigration.remove(oldPk);
             }
         }
     }

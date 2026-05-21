@@ -27,7 +27,7 @@ Midnight contracts operate across **three execution contexts**:
 
 ### File Structure
 ```compact
-pragma language_version >= 0.22;    // Use `>=` so newer compilers accept it
+pragma language_version >= 0.22 && <= 0.23;  // bounded: avoid open-ended future versions
 import CompactStandardLibrary;      // Always import the standard library
 
 // Type declarations
@@ -478,7 +478,7 @@ If your contract does anything other than routing shielded tokens (storing ident
 A single 32-byte `userSecretKey` lives in the caller's private state. The contract derives multiple public keys from it using domain-separated hashes — one per role.
 
 ```compact
-pragma language_version >= 0.22;
+pragma language_version >= 0.22 && <= 0.23;
 import CompactStandardLibrary;
 
 export struct UserSecretKey { bytes: Bytes<32>; }
@@ -597,7 +597,7 @@ This is the **witness-derived keypair pattern**. Cite it by that name when docum
 
 ---
 
-*Last updated: Compact language version >= 0.22, compiler version 0.30.0+. Section 13 (Admin Authorization) reflects the witness-derived keypair pattern that replaces an earlier `ownPublicKey()`-based pattern. The earlier pattern was insecure and has been removed throughout the repository.*
+*Last updated: Compact language version >= 0.22 && <= 0.23, compiler version 0.31.0. Section 13 (Admin Authorization) reflects the witness-derived keypair pattern that replaces an earlier `ownPublicKey()`-based pattern. The earlier pattern was insecure and has been removed throughout the repository.*
 
 **References:**
 - [Explicit Disclosure](https://docs.midnight.network/develop/reference/compact/explicit_disclosure) - Official Midnight documentation

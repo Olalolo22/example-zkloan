@@ -11,7 +11,7 @@
 - Node.js v22+
 - npm v10+
 - Docker + Docker Compose (for the local standalone network)
-- Compact toolchain 0.30.0 — install with the [`compact` devtool](https://docs.midnight.network/develop/tutorial/building/prereqs#compact-developer-tools), then run `compact update` if needed. Verify with `compact compile --version` (should print `0.30.0`)
+- Compact toolchain 0.31.0 — install with the [`compact` devtool](https://docs.midnight.network/develop/tutorial/building/prereqs#compact-developer-tools), then run `compact update`. Verify with `compact compile --version` (should print `0.31.0`)
 - For the remote testnet flow only: the [Midnight Lace wallet](https://chromewebstore.google.com/detail/lace/gafhhkghbfjjkeiendhlofajokpaflmk) browser extension
 
 ### Dependency versions
@@ -21,14 +21,14 @@ The project targets ledger v8 and the 4.x Midnight JS SDK. See [Midnight's compa
 | Component | Version |
 |---|---|
 | `@midnight-ntwrk/ledger-v8` | 8.0.3 |
-| `@midnight-ntwrk/compact-runtime` | 0.15.0 |
+| `@midnight-ntwrk/compact-runtime` | 0.16.0 |
 | `@midnight-ntwrk/compact-js` | 2.5.0 |
 | `@midnight-ntwrk/midnight-js-*` | 4.0.4 |
 | `@midnight-ntwrk/dapp-connector-api` | 4.0.1 |
 | `@midnight-ntwrk/wallet-sdk-facade` / `dust-wallet` / `hd` | 3.0.0 |
 | `@midnight-ntwrk/wallet-sdk-shielded` / `unshielded-wallet` | 2.1.0 |
-| Compact toolchain (`compact compile`) | 0.30.0 |
-| Compact language pragma | 0.22 |
+| Compact toolchain (`compact compile`) | 0.31.0 |
+| Compact language pragma | >= 0.22 && <= 0.23 |
 | Proof server image | `midnightntwrk/proof-server:8.0.3` |
 | Indexer image | `midnightntwrk/indexer-standalone:4.0.1` |
 | Node image | `midnightntwrk/midnight-node:0.22.3` |
@@ -411,19 +411,19 @@ Code snippet
 ```
 circuit evaluateApplicant(): [Uint<16>, LoanStatus] {
 
-     const profile = getRequesterScoringWitness();
+     const profile = getRequesterScoringWitness();
 
-    // Tier 1: Best applicants
-    if (profile.creditScore >= 700 && profile.monthlyIncome >= 2000 && profile.monthsAsCustomer >= 24) {
-        return [10000, LoanStatus.Approved];
+    // Tier 1: Best applicants
+    if (profile.creditScore >= 700 && profile.monthlyIncome >= 2000 && profile.monthsAsCustomer >= 24) {
+        return [10000, LoanStatus.Approved];
 
-    }
+    }
 
-    // ... other tiers ...
+    // ... other tiers ...
 
-    else {
-        return [0, LoanStatus.Rejected];
-    }
+    else {
+        return [0, LoanStatus.Rejected];
+    }
 
 }
 ```
@@ -446,22 +446,22 @@ Code snippet
 ```
 circuit createLoan(requester: Bytes<32>, amountRequested: Uint<16>, topTierAmount: Uint<16>, status: LoanStatus): \[] {
 
-    const authorizedAmount = amountRequested > topTierAmount ? topTierAmount : amountRequested;
+    const authorizedAmount = amountRequested > topTierAmount ? topTierAmount : amountRequested;
 
-    if(!loans.member(requester)) {
+    if(!loans.member(requester)) {
 
-        loans.insert(requester, default\<Map\<Uint<16>, LoanApplication>>);
+        loans.insert(requester, default\<Map\<Uint<16>, LoanApplication>>);
 
-    }
+    }
 
-    const userLoans = loans.lookup(requester);
-    const totalLoans = userLoans.size();
-    const loanNumber = totalLoans + 1;
-    const loan = LoanApplication { ... };
+    const userLoans = loans.lookup(requester);
+    const totalLoans = userLoans.size();
+    const loanNumber = totalLoans + 1;
+    const loan = LoanApplication { ... };
 
-    userLoans.insert(loanNumber as Uint<16>, disclose(loan));  
+    userLoans.insert(loanNumber as Uint<16>, disclose(loan));  
 
-    return [];
+    return [];
 
 }
 ```
@@ -485,21 +485,21 @@ Code snippet
 
 ```
 export circuit respondToLoan(loanId: Uint<16>, secretPin: Uint<16>, accept: Boolean): [] {
-    const zwapPublicKey = ownPublicKey();
-    const requesterPubKey = publicKey(zwapPublicKey.bytes, secretPin);
+    const requesterPubKey = deriveUserPublicKey(getUserSecret(), secretPin);
+    const disclosed = disclose(requesterPubKey);
 
-    assert(!blacklist.member(zwapPublicKey), "User is blacklisted");
-    assert(loans.member(requesterPubKey), "No loans found for this user");
-    assert(loans.lookup(requesterPubKey).member(loanId), "Loan not found");
+    assert(!blacklist.member(disclosed), "User is blacklisted");
+    assert(loans.member(disclosed.bytes), "No loans found for this user");
+    assert(loans.lookup(disclosed.bytes).member(disclose(loanId)), "Loan not found");
 
-    const existingLoan = loans.lookup(requesterPubKey).lookup(loanId);
+    const existingLoan = loans.lookup(disclosed.bytes).lookup(disclose(loanId));
     assert(existingLoan.status == LoanStatus.Proposed, "Loan is not in Proposed status");
 
     const updatedLoan = accept
         ? LoanApplication { authorizedAmount: existingLoan.authorizedAmount, status: LoanStatus.Approved }
         : LoanApplication { authorizedAmount: 0, status: LoanStatus.NotAccepted };
 
-    loans.lookup(requesterPubKey).insert(loanId, disclose(updatedLoan));
+    loans.lookup(disclosed.bytes).insert(disclose(loanId), disclose(updatedLoan));
     return [];
 }
 ```
@@ -508,7 +508,7 @@ Design Decisions: This circuit enables users to respond to loan proposals, compl
 
 - User Agency: Rather than auto-approving loans at reduced amounts, this circuit gives users explicit control. They can review the proposed amount and make an informed decision to accept or decline.
 
-- Identity Verification: The circuit derives the user's public key from their Zswap key and PIN, ensuring only the loan owner can respond to their proposals.
+- Identity Verification: The circuit derives the caller's public key from their witness secret (`getUserSecret()`) and PIN — never from `ownPublicKey()`, which is prover-supplied and forgeable. Only the holder of the secret can produce a derived key matching a stored loan, so only the loan owner can respond.
 
 - State Validation: Multiple assertions ensure the loan exists and is in the correct `Proposed` status before allowing any modification.
 
@@ -522,27 +522,28 @@ Logic:
 Code snippet
 
 ```
-export circuit requestLoan(amountRequested:Uint<16>, secretPin: Uint<16>):\[] {
-    const zwapPublicKey = ownPublicKey();
-    const requesterPubKey = publicKey(zwapPublicKey.bytes, secretPin);
+export circuit requestLoan(amountRequested:Uint<16>, secretPin: Uint<16>): [] {
+    const requesterPubKey = deriveUserPublicKey(getUserSecret(), secretPin);
+    const disclosed = disclose(requesterPubKey);
 
-    assert (!blacklist.member(zwapPublicKey), "Requester is blacklisted");
+    assert(!blacklist.member(disclosed), "Requester is blacklisted");
 
-    // ...
+    // ... PIN-migration guard ...
 
-    const [topTierAmount, status] = evaluateApplicant();
-    const disclosedTopTierAmount = disclose(topTierAmount);
-    const disclosedStatus = disclose(status);
-    createLoan(disclose(requesterPubKey), amountRequested, disclosedTopTierAmount, disclosedStatus);
+    // Bind the attestation to this caller's derived identity
+    const userPubKeyHash = transientHash<Bytes<32>>(disclosed.bytes);
+    const [topTierAmount, status] = evaluateApplicant(userPubKeyHash);
+    const disclosedTopTierAmount = disclose(topTierAmount);
+    const disclosedStatus = disclose(status);
+    createLoan(disclosed.bytes, amountRequested, disclosedTopTierAmount, disclosedStatus);
 
-    return [];
-
+    return [];
 }
 ```
 
 Design Decisions: This circuit acts as the main entry point and orchestrator for the loan application process. Its design is to safely manage the flow of data from private inputs to public outputs.
 
-- Orchestration Role: It doesn't contain the core business logic itself but instead calls other specialized circuits (publicKey, evaluateApplicant, createLoan) to perform specific tasks. This separation of concerns makes the contract cleaner and easier to maintain.
+- Orchestration Role: It doesn't contain the core business logic itself but instead calls other specialized circuits (deriveUserPublicKey, evaluateApplicant, createLoan) to perform specific tasks. This separation of concerns makes the contract cleaner and easier to maintain.
 
 - Safety Checks: It performs initial safety checks, such as verifying that the user is not on the blacklist and is not in the middle of a PIN change, ensuring the integrity of the system before proceeding with the more computationally expensive evaluation.
 
@@ -556,38 +557,37 @@ Logic:
 Code snippet
 
 ```
-export circuit changePin(oldPin: Uint<16>, newPin: Uint<16>): \[] {
-    const zwapPublicKey = ownPublicKey();
-    const oldPk = publicKey(zwapPublicKey.bytes, oldPin);
-    const newPk = publicKey(zwapPublicKey.bytes, newPin);
+export circuit changePin(oldPin: Uint<16>, newPin: Uint<16>): [] {
+    const oldPk = deriveUserPublicKey(getUserSecret(), oldPin);
+    const newPk = deriveUserPublicKey(getUserSecret(), newPin);
 
-    // ... safety checks and initialization ...
+    // ... safety checks and initialization ...
 
-    const lastMigratedLoan = onGoingPinMigration.lookup(disclose(oldPk));
-    // Vector of fixed size 5 is created
+    const lastMigratedLoan = onGoingPinMigration.lookup(disclose(oldPk.bytes));
+    // Vector of fixed size 5 is created
 
-    const loansIds: Vector<5, Uint<16>> = \[
-        (lastMigratedLoan + 1) as Uint<16>,
-        // ... and so on for 5 elements
+    const loansIds: Vector<5, Uint<16>> = [
+        (lastMigratedLoan + 1) as Uint<16>,
+        // ... and so on for 5 elements
 
-    ];
+    ];
 
-    for (const currentLoan of loansIds) {
-        if (loans.lookup(oldPk).member(currentLoan)) {
-            // ... move the loan from oldPk to newPk ...
-            onGoingPinMigration.insert(disclose(oldPk), currentLoan);
+    for (const currentLoan of loansIds) {
+        if (loans.lookup(oldPk).member(currentLoan)) {
+            // ... move the loan from oldPk to newPk ...
+            onGoingPinMigration.insert(disclose(oldPk), currentLoan);
 
-        } else {
-            // If a loanId is not found, it signals the end of the migration.
-            onGoingPinMigration.remove(disclose(oldPk));
-            loans.remove(disclose(oldPk));
-            return \[];
+        } else {
+            // If a loanId is not found, it signals the end of the migration.
+            onGoingPinMigration.remove(disclose(oldPk));
+            loans.remove(disclose(oldPk));
+            return \[];
 
-        }
+        }
 
-    }
+    }
 
-    // ...
+    // ...
 
 }
 ```

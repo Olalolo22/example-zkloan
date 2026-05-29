@@ -1,6 +1,6 @@
 # ZKLoan Credit Scorer — Contract Reference
 
-Reference for the Compact contract. Reflects `pragma language_version 0.22` and the Midnight toolchain 0.30.0 / ledger v8 build.
+Reference for the Compact contract. Reflects `pragma language_version >= 0.22 && <= 0.23` and the Midnight toolchain 0.31.0 / ledger v8 build. **Caller identity is witness-derived throughout — `ownPublicKey()` is not called by this contract.** The admin role and per-user identity both derive from a single 32-byte `userSecretKey` in private state via domain-separated hashes.
 
 ## Project Overview
 
@@ -47,7 +47,7 @@ zkloan-credit-scorer/
 
 ### File: `contract/src/zkloan-credit-scorer.compact`
 
-**Language version**: `pragma language_version 0.22`
+**Language version**: `pragma language_version >= 0.22 && <= 0.23`
 
 ### Types
 
@@ -81,10 +81,10 @@ export struct SchnorrSignature {
 
 | Variable | Type | Purpose |
 |---|---|---|
-| `blacklist` | `Set<ZswapCoinPublicKey>` | Blocked wallet addresses |
+| `blacklist` | `Set<UserPublicKey>` | Blocked derived user public keys (not wallet addresses) |
 | `loans` | `Map<Bytes<32>, Map<Uint<16>, LoanApplication>>` | User pubkey → loanId → loan |
 | `onGoingPinMigration` | `Map<Bytes<32>, Uint<16>>` | Tracks last migrated loanId per in-progress PIN change |
-| `admin` | `ZswapCoinPublicKey` | Contract admin (set in constructor, transferable) |
+| `contractAdmin` | `AdminPublicKey` | Derived public key of the current admin. The matching secret lives in private state; the admin proves possession inside the ZK circuit. Rotatable via `rotateAdmin`. |
 | `providers` | `Map<Uint<16>, JubjubPoint>` | Registered attestation provider public keys (Jubjub) |
 
 ### Nested Map Access Pattern
@@ -115,26 +115,28 @@ Entry point. Validates the caller, runs the private credit evaluation (which its
 ```compact
 export circuit requestLoan(amountRequested: Uint<16>, secretPin: Uint<16>): [] {
     assert(amountRequested > 0, "Loan amount must be greater than zero");
-    const zwapPublicKey = ownPublicKey();
-    const requesterPubKey = publicKey(zwapPublicKey.bytes, secretPin);
+    const requesterPubKey = deriveUserPublicKey(getUserSecret(), secretPin);
+    const disclosed = disclose(requesterPubKey);
 
-    assert(!blacklist.member(zwapPublicKey), "Requester is blacklisted");
-    assert(!onGoingPinMigration.member(disclose(requesterPubKey)),
+    assert(!blacklist.member(disclosed), "Requester is blacklisted");
+    assert(!onGoingPinMigration.member(disclosed.bytes),
            "PIN migration is in progress for this user");
 
     // Bound the signed attestation to this specific user identity
-    const userPubKeyHash = transientHash<Bytes<32>>(requesterPubKey);
+    const userPubKeyHash = transientHash<Bytes<32>>(disclosed.bytes);
 
     const [topTierAmount, status] = evaluateApplicant(userPubKeyHash);
-    createLoan(disclose(requesterPubKey), amountRequested,
+    createLoan(disclosed.bytes, amountRequested,
                disclose(topTierAmount), disclose(status));
     return [];
 }
 ```
 
+The caller's identity comes from `deriveUserPublicKey(getUserSecret(), secretPin)` — the witness secret combined with the PIN, NOT from `ownPublicKey()`. The contract never consults the prover-claimed wallet pubkey.
+
 ### `respondToLoan(loanId: Uint<16>, secretPin: Uint<16>, accept: Boolean): []`
 
-Resolves a `Proposed` loan. Only the loan owner (derived from their PIN + Zswap key) can respond. Accepting flips status to `Approved` at the proposed amount; declining flips to `NotAccepted` with amount 0.
+Resolves a `Proposed` loan. Only the loan owner (whose witness secret + PIN derive to the loan's storage key) can respond. Accepting flips status to `Approved` at the proposed amount; declining flips to `NotAccepted` with amount 0.
 
 ### `evaluateApplicant(userPubKeyHash: Field): [Uint<16>, LoanStatus]`
 
@@ -185,25 +187,27 @@ Writes to the `loans` ledger. If `amountRequested > topTierAmount` the loan is s
 
 ### `changePin(oldPin: Uint<16>, newPin: Uint<16>): []`
 
-Batched migration of a user's loans from `publicKey(zwapKey, oldPin)` to `publicKey(zwapKey, newPin)`. Fixed batch size of 5 per transaction. `onGoingPinMigration` records the last-migrated loanId so the DApp can call `changePin` repeatedly until all loans are moved.
+Batched migration of a user's loans from `deriveUserPublicKey(getUserSecret(), oldPin)` to `deriveUserPublicKey(getUserSecret(), newPin)`. Fixed batch size of 5 per transaction. `onGoingPinMigration` records the last-migrated loanId so the DApp can call `changePin` repeatedly until all loans are moved.
 
 Key constraint: Compact circuits cannot iterate over variable-length collections, hence the fixed-size loop + off-chain orchestration.
 
-### `publicKey(sk: Bytes<32>, pin: Uint<16>): Bytes<32>`
+### `deriveUserPublicKey(sk: UserSecretKey, pin: Uint<16>): UserPublicKey`
 
-Deterministic derivation: `persistentHash([domainSeparator, hash(pin), sk])`. The PIN never appears on-chain; only the derived key does.
+Deterministic per-user identity: `persistentHash(["zkloan:user:pk:v1", hash(pin), sk])`. Derived from the witness secret + PIN — never from `ownPublicKey()`. The PIN never appears on-chain; only the derived key does. Exported so the CLI/UI can compute the same value off-chain (loan-map lookups, blacklist targeting).
 
 ### Admin Circuits
 
-All guarded by `assert(ownPublicKey() == admin, ...)`.
+All guarded by `assert(contractAdmin == deriveAdminPublicKey(getUserSecret()), ...)`. The admin holds a 32-byte `userSecretKey` in private state; the ledger stores only the derived admin public key. The equality check enforces, inside the ZK circuit, that the caller knows the preimage of `contractAdmin`. Any chain reader can copy the ledger value, but only the holder of the secret can satisfy the constraint.
 
 ```compact
-export circuit blacklistUser(account: ZswapCoinPublicKey): []
-export circuit removeBlacklistUser(account: ZswapCoinPublicKey): []
+export circuit blacklistUser(account: UserPublicKey): []
+export circuit removeBlacklistUser(account: UserPublicKey): []
 export circuit registerProvider(providerId: Uint<16>, providerPk: JubjubPoint): []
 export circuit removeProvider(providerId: Uint<16>): []
-export circuit transferAdmin(newAdmin: ZswapCoinPublicKey): []
+export circuit rotateAdmin(newAdmin: AdminPublicKey): []
 ```
+
+The `rotateAdmin` flow hands the role to a new admin without transmitting any private key. The new admin generates their own secret locally, calls `deriveAdminPublicKey` off-chain to compute their public key, and sends only the resulting 32-byte value to the current admin. The current admin submits `rotateAdmin(newAdmin)` to overwrite `contractAdmin` on the ledger.
 
 ---
 
@@ -236,6 +240,7 @@ export type ZKLoanCreditScorerPrivateState = {
   monthsAsCustomer: bigint;
   attestationSignature: SchnorrSignature;
   attestationProviderId: bigint;
+  userSecretKey: Uint8Array;  // 32 bytes — the caller's authentic identity
 };
 
 export const witnesses = {
@@ -259,6 +264,17 @@ export const witnesses = {
     const r = challengeHash % TWO_248;
     return [privateState, [q, r]];
   },
+
+  // The single source of caller identity. The contract uses this to derive
+  // both per-user pubkeys (`deriveUserPublicKey`) and the admin pubkey
+  // (`deriveAdminPublicKey`). Validate the length so a malformed witness is
+  // rejected at proof time, not on-chain.
+  getUserSecret: ({ privateState }) => {
+    if (!privateState.userSecretKey || privateState.userSecretKey.length !== 32) {
+      throw new Error("userSecretKey is missing or wrong length");
+    }
+    return [privateState, { bytes: privateState.userSecretKey }];
+  },
 };
 ```
 
@@ -275,13 +291,14 @@ export const witnesses = {
 ```typescript
 it("approves a Tier 1 loan, capping at the max amount", () => {
   const sim = new ZKLoanCreditScorerSimulator();
-  const userZwapKey = sim.createTestUser("Alice").left.bytes;
   const pin = 1234n;
 
   sim.requestLoan(15000n, pin);  // over the tier 1 ceiling → Proposed
 
+  // The loan key is the caller's derived user pubkey (witness secret + PIN),
+  // not a wallet address — same value the contract computes in-circuit.
   const loan = sim.getLedger().loans
-    .lookup(sim.publicKey(userZwapKey, pin))
+    .lookup(sim.deriveUserPublicKey(sim.userSecretKey, pin))
     .lookup(1n);
 
   expect(loan.status).toEqual(LoanStatus.Proposed);
@@ -325,6 +342,7 @@ npm run build
 - `creditScore`, `monthlyIncome`, `monthsAsCustomer` — stored in `ZKLoanCreditScorerPrivateState`, encrypted on disk by the level-private-state-provider
 - `secretPin` — never stored; only its hash contributes to the derived public key
 - The full attestation signature and the provider's choice (until the signature is verified in-circuit)
+- `userSecretKey` — single 32-byte secret per browser/CLI instance. Drives both the per-user identity (`deriveUserPublicKey(secret, pin)`) and the admin role (`deriveAdminPublicKey(secret)`). The deployer's derived admin pubkey is frozen into `contractAdmin`; everyone else's `getUserSecret()` produces a value whose hash does not match, so admin assertions fail for them. Domain separation keeps the per-user and admin pubkeys uncorrelated
 
 ### Public (on the ledger)
 
@@ -332,7 +350,7 @@ npm run build
 - `LoanStatus` and `authorizedAmount`
 - Blacklist entries
 - Registered provider ids + Jubjub public keys
-- Admin address
+- `contractAdmin` (`AdminPublicKey`) — the admin's derived public key. The matching private secret is in the admin's local state
 
 ### Leak Prevention
 
@@ -348,7 +366,7 @@ npm run build
 |---|---|---|---|---|
 | Standalone | `http://localhost:8088` | `ws://localhost:9944` | Undeployed | Local docker-compose (see [standalone.yml](../zkloan-credit-scorer-cli/standalone.yml)) |
 | TestnetLocal | `http://localhost:8088` | `ws://localhost:9944` | TestNet | Local proof server + remote testnet |
-| TestnetRemote | `https://indexer.testnet-02.midnight.network` | `wss://rpc.testnet-02.midnight.network` | TestNet | Public testnet |
+| Preprod | `https://indexer.preprod.midnight.network/api/v4/graphql` | `wss://rpc.preprod.midnight.network` | Preprod | Public preprod testnet |
 
 ---
 
@@ -356,7 +374,11 @@ npm run build
 
 ### Access control
 ```compact
-assert(ownPublicKey() == admin, "Only admin can blacklist users");
+// Witness-derived keypair pattern. The admin proves knowledge of the secret
+// whose hash is stored in `contractAdmin`. `ownPublicKey()` is never called
+// in this contract — it returns a value the prover claims and any assertion
+// that depends on it is bypassable, even for blacklist or identity checks.
+assert(contractAdmin == deriveAdminPublicKey(getUserSecret()), "Only admin can blacklist users");
 ```
 
 ### Nested map init

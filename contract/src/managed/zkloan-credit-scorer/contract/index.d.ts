@@ -8,6 +8,12 @@ export enum LoanStatus { Approved = 0,
 
 export type LoanApplication = { authorizedAmount: bigint; status: LoanStatus };
 
+export type UserSecretKey = { bytes: Uint8Array };
+
+export type UserPublicKey = { bytes: Uint8Array };
+
+export type AdminPublicKey = { bytes: Uint8Array };
+
 export type Schnorr_SchnorrSignature = { announcement: __compactRuntime.JubjubPoint;
                                          response: bigint
                                        };
@@ -21,6 +27,7 @@ export type Witnesses<PS> = {
                                                                                          },
                                                                                          Schnorr_SchnorrSignature,
                                                                                          bigint]];
+  getUserSecret(context: __compactRuntime.WitnessContext<Ledger, PS>): [PS, UserSecretKey];
 }
 
 export type ImpureCircuits<PS> = {
@@ -32,16 +39,16 @@ export type ImpureCircuits<PS> = {
                 secretPin_0: bigint,
                 accept_0: boolean): __compactRuntime.CircuitResults<PS, []>;
   blacklistUser(context: __compactRuntime.CircuitContext<PS>,
-                account_0: { bytes: Uint8Array }): __compactRuntime.CircuitResults<PS, []>;
+                account_0: UserPublicKey): __compactRuntime.CircuitResults<PS, []>;
   removeBlacklistUser(context: __compactRuntime.CircuitContext<PS>,
-                      account_0: { bytes: Uint8Array }): __compactRuntime.CircuitResults<PS, []>;
+                      account_0: UserPublicKey): __compactRuntime.CircuitResults<PS, []>;
   registerProvider(context: __compactRuntime.CircuitContext<PS>,
                    providerId_0: bigint,
                    providerPk_0: __compactRuntime.JubjubPoint): __compactRuntime.CircuitResults<PS, []>;
   removeProvider(context: __compactRuntime.CircuitContext<PS>,
                  providerId_0: bigint): __compactRuntime.CircuitResults<PS, []>;
-  transferAdmin(context: __compactRuntime.CircuitContext<PS>,
-                newAdmin_0: { bytes: Uint8Array }): __compactRuntime.CircuitResults<PS, []>;
+  rotateAdmin(context: __compactRuntime.CircuitContext<PS>,
+              newAdmin_0: AdminPublicKey): __compactRuntime.CircuitResults<PS, []>;
   changePin(context: __compactRuntime.CircuitContext<PS>,
             oldPin_0: bigint,
             newPin_0: bigint): __compactRuntime.CircuitResults<PS, []>;
@@ -56,23 +63,24 @@ export type ProvableCircuits<PS> = {
                 secretPin_0: bigint,
                 accept_0: boolean): __compactRuntime.CircuitResults<PS, []>;
   blacklistUser(context: __compactRuntime.CircuitContext<PS>,
-                account_0: { bytes: Uint8Array }): __compactRuntime.CircuitResults<PS, []>;
+                account_0: UserPublicKey): __compactRuntime.CircuitResults<PS, []>;
   removeBlacklistUser(context: __compactRuntime.CircuitContext<PS>,
-                      account_0: { bytes: Uint8Array }): __compactRuntime.CircuitResults<PS, []>;
+                      account_0: UserPublicKey): __compactRuntime.CircuitResults<PS, []>;
   registerProvider(context: __compactRuntime.CircuitContext<PS>,
                    providerId_0: bigint,
                    providerPk_0: __compactRuntime.JubjubPoint): __compactRuntime.CircuitResults<PS, []>;
   removeProvider(context: __compactRuntime.CircuitContext<PS>,
                  providerId_0: bigint): __compactRuntime.CircuitResults<PS, []>;
-  transferAdmin(context: __compactRuntime.CircuitContext<PS>,
-                newAdmin_0: { bytes: Uint8Array }): __compactRuntime.CircuitResults<PS, []>;
+  rotateAdmin(context: __compactRuntime.CircuitContext<PS>,
+              newAdmin_0: AdminPublicKey): __compactRuntime.CircuitResults<PS, []>;
   changePin(context: __compactRuntime.CircuitContext<PS>,
             oldPin_0: bigint,
             newPin_0: bigint): __compactRuntime.CircuitResults<PS, []>;
 }
 
 export type PureCircuits = {
-  publicKey(sk_0: Uint8Array, pin_0: bigint): Uint8Array;
+  deriveUserPublicKey(sk_0: UserSecretKey, pin_0: bigint): UserPublicKey;
+  deriveAdminPublicKey(sk_0: UserSecretKey): AdminPublicKey;
   schnorrChallenge(ann_x_0: bigint,
                    ann_y_0: bigint,
                    pk_x_0: bigint,
@@ -81,6 +89,11 @@ export type PureCircuits = {
 }
 
 export type Circuits<PS> = {
+  deriveUserPublicKey(context: __compactRuntime.CircuitContext<PS>,
+                      sk_0: UserSecretKey,
+                      pin_0: bigint): __compactRuntime.CircuitResults<PS, UserPublicKey>;
+  deriveAdminPublicKey(context: __compactRuntime.CircuitContext<PS>,
+                       sk_0: UserSecretKey): __compactRuntime.CircuitResults<PS, AdminPublicKey>;
   requestLoan(context: __compactRuntime.CircuitContext<PS>,
               amountRequested_0: bigint,
               secretPin_0: bigint): __compactRuntime.CircuitResults<PS, []>;
@@ -89,22 +102,19 @@ export type Circuits<PS> = {
                 secretPin_0: bigint,
                 accept_0: boolean): __compactRuntime.CircuitResults<PS, []>;
   blacklistUser(context: __compactRuntime.CircuitContext<PS>,
-                account_0: { bytes: Uint8Array }): __compactRuntime.CircuitResults<PS, []>;
+                account_0: UserPublicKey): __compactRuntime.CircuitResults<PS, []>;
   removeBlacklistUser(context: __compactRuntime.CircuitContext<PS>,
-                      account_0: { bytes: Uint8Array }): __compactRuntime.CircuitResults<PS, []>;
+                      account_0: UserPublicKey): __compactRuntime.CircuitResults<PS, []>;
   registerProvider(context: __compactRuntime.CircuitContext<PS>,
                    providerId_0: bigint,
                    providerPk_0: __compactRuntime.JubjubPoint): __compactRuntime.CircuitResults<PS, []>;
   removeProvider(context: __compactRuntime.CircuitContext<PS>,
                  providerId_0: bigint): __compactRuntime.CircuitResults<PS, []>;
-  transferAdmin(context: __compactRuntime.CircuitContext<PS>,
-                newAdmin_0: { bytes: Uint8Array }): __compactRuntime.CircuitResults<PS, []>;
+  rotateAdmin(context: __compactRuntime.CircuitContext<PS>,
+              newAdmin_0: AdminPublicKey): __compactRuntime.CircuitResults<PS, []>;
   changePin(context: __compactRuntime.CircuitContext<PS>,
             oldPin_0: bigint,
             newPin_0: bigint): __compactRuntime.CircuitResults<PS, []>;
-  publicKey(context: __compactRuntime.CircuitContext<PS>,
-            sk_0: Uint8Array,
-            pin_0: bigint): __compactRuntime.CircuitResults<PS, Uint8Array>;
   schnorrChallenge(context: __compactRuntime.CircuitContext<PS>,
                    ann_x_0: bigint,
                    ann_y_0: bigint,
@@ -117,8 +127,8 @@ export type Ledger = {
   blacklist: {
     isEmpty(): boolean;
     size(): bigint;
-    member(elem_0: { bytes: Uint8Array }): boolean;
-    [Symbol.iterator](): Iterator<{ bytes: Uint8Array }>
+    member(elem_0: UserPublicKey): boolean;
+    [Symbol.iterator](): Iterator<UserPublicKey>
   };
   loans: {
     isEmpty(): boolean;
@@ -139,7 +149,7 @@ export type Ledger = {
     lookup(key_0: Uint8Array): bigint;
     [Symbol.iterator](): Iterator<[Uint8Array, bigint]>
   };
-  readonly admin: { bytes: Uint8Array };
+  readonly contractAdmin: AdminPublicKey;
   providers: {
     isEmpty(): boolean;
     size(): bigint;

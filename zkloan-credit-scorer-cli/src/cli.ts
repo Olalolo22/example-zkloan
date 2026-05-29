@@ -21,7 +21,6 @@ import { type ZKLoanCreditScorerProviders, type DeployedZKLoanCreditScorerContra
 import { type Config, StandaloneConfig } from './config';
 import * as api from './api';
 import type { WalletContext } from './api';
-import { resolveZswapCoinPublicKey } from './address-utils';
 import { getUserProfile } from './state.utils';
 import 'dotenv/config';
 
@@ -48,7 +47,7 @@ You can do one of the following:
   4. Display wallet balances
   5. [Admin] Blacklist a user
   6. [Admin] Remove user from blacklist
-  7. [Admin] Transfer admin role
+  7. [Admin] Rotate admin role to new derived public key
   8. [Admin] Register attestation provider
   9. [Admin] Remove attestation provider
   10. Exit
@@ -79,7 +78,7 @@ const deployOrJoin = async (providers: ZKLoanCreditScorerProviders, rli: Interfa
 const requestLoan = async (
   contract: DeployedZKLoanCreditScorerContract,
   providers: ZKLoanCreditScorerProviders,
-  walletContext: WalletContext,
+  _walletContext: WalletContext,
   rli: Interface,
 ): Promise<void> => {
   const amountStr = await rli.question(
@@ -91,10 +90,11 @@ const requestLoan = async (
   const pin = BigInt(pinStr);
 
   const attestationApiUrl = process.env.ATTESTATION_API_URL || 'http://localhost:4000';
-  const coinPubKeyHex = walletContext.shieldedSecretKeys.coinPublicKey as unknown as string;
-  const zwapKeyBytes = Buffer.from(coinPubKeyHex, 'hex');
 
-  await api.requestLoan(contract, providers, amount, pin, zwapKeyBytes, attestationApiUrl);
+  // The caller's identity is derived from the local `userSecretKey` in
+  // private state — read by `api.requestLoan` directly. The wallet's Zswap
+  // key is not part of the contract's identity model.
+  await api.requestLoan(contract, providers, amount, pin, attestationApiUrl);
   logger.info('Loan request submitted successfully!');
 };
 
@@ -110,31 +110,44 @@ const changePinFlow = async (contract: DeployedZKLoanCreditScorerContract, rli: 
   logger.info('Note: If you have many loans, you may need to call this multiple times to complete the migration.');
 };
 
-const ADDRESS_PROMPT_HINT =
-  '(shielded address `mn_shield-addr_…` or 32-byte hex public key)';
+const USER_PUBKEY_PROMPT_HINT =
+  '(64-char hex of the user\'s derived UserPublicKey — e.g. read from the on-chain `loans` map key, or shared by the target)';
+
+const parseUserPublicKeyHex = (input: string): Uint8Array => {
+  const hex = input.trim().toLowerCase().replace(/^0x/, '');
+  if (!/^[0-9a-f]{64}$/.test(hex)) {
+    throw new Error('User public key must be exactly 64 hex chars (32 bytes).');
+  }
+  return Uint8Array.from(Buffer.from(hex, 'hex'));
+};
 
 const blacklistUserFlow = async (contract: DeployedZKLoanCreditScorerContract, rli: Interface): Promise<void> => {
-  const accountInput = await rli.question(`Enter the user to blacklist ${ADDRESS_PROMPT_HINT}: `);
-  const account = resolveZswapCoinPublicKey(accountInput);
-
-  await api.blacklistUser(contract, account);
-  logger.info('User blacklisted successfully!');
+  const input = await rli.question(`Enter the user public key to blacklist ${USER_PUBKEY_PROMPT_HINT}: `);
+  await api.blacklistUser(contract, parseUserPublicKeyHex(input));
+  logger.info('User public key blacklisted successfully!');
 };
 
 const removeBlacklistUserFlow = async (contract: DeployedZKLoanCreditScorerContract, rli: Interface): Promise<void> => {
-  const accountInput = await rli.question(`Enter the user to remove from blacklist ${ADDRESS_PROMPT_HINT}: `);
-  const account = resolveZswapCoinPublicKey(accountInput);
-
-  await api.removeBlacklistUser(contract, account);
-  logger.info('User removed from blacklist successfully!');
+  const input = await rli.question(`Enter the user public key to remove from blacklist ${USER_PUBKEY_PROMPT_HINT}: `);
+  await api.removeBlacklistUser(contract, parseUserPublicKeyHex(input));
+  logger.info('User public key removed from blacklist successfully!');
 };
 
-const transferAdminFlow = async (contract: DeployedZKLoanCreditScorerContract, rli: Interface): Promise<void> => {
-  const newAdminInput = await rli.question(`Enter the new admin ${ADDRESS_PROMPT_HINT}: `);
-  const newAdmin = resolveZswapCoinPublicKey(newAdminInput);
-
-  await api.transferAdmin(contract, newAdmin);
-  logger.info('Admin role transferred successfully!');
+// Rotate the admin role to a public key the new admin already derived
+// locally. The new admin runs `deriveAdminPublicKey(userSecret)` against
+// their own 32-byte user secret and hands the resulting public key (64 hex
+// chars) to the current admin. No private key is exchanged.
+const rotateAdminFlow = async (contract: DeployedZKLoanCreditScorerContract, rli: Interface): Promise<void> => {
+  const input = await rli.question(
+    'Enter the new admin derived public key (64 hex chars). ' +
+    'The new admin generates this with `deriveAdminPublicKey(userSecret)` and shares only the result: ',
+  );
+  const hex = input.trim().toLowerCase().replace(/^0x/, '');
+  if (!/^[0-9a-f]{64}$/.test(hex)) {
+    throw new Error('New admin public key must be exactly 64 hex chars (32 bytes).');
+  }
+  await api.rotateAdmin(contract, Uint8Array.from(Buffer.from(hex, 'hex')));
+  logger.info('Admin role rotated successfully!');
 };
 
 const registerProviderFlow = async (contract: DeployedZKLoanCreditScorerContract, rli: Interface): Promise<void> => {
@@ -185,7 +198,7 @@ const mainLoop = async (providers: ZKLoanCreditScorerProviders, walletContext: W
           await removeBlacklistUserFlow(contract, rli);
           break;
         case '7':
-          await transferAdminFlow(contract, rli);
+          await rotateAdminFlow(contract, rli);
           break;
         case '8':
           await registerProviderFlow(contract, rli);

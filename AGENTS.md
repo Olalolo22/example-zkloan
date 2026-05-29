@@ -27,25 +27,34 @@ Midnight contracts operate across **three execution contexts**:
 
 ### File Structure
 ```compact
-pragma language_version 0.19;       // Required version pragma
+pragma language_version >= 0.22 && <= 0.23;  // bounded: avoid open-ended future versions
 import CompactStandardLibrary;      // Always import the standard library
 
 // Type declarations
 export enum MyStatus { Active, Inactive }
 export struct MyData { field1: Uint<32>; field2: Bytes<32>; }
 
+// Caller identity: single witness-supplied user secret. NEVER use
+// `ownPublicKey()` to identify the caller. See section 13 below for the rule
+// and the bypass it closes.
+export struct UserSecretKey { bytes: Bytes<32>; }
+export struct UserPublicKey { bytes: Bytes<32>; }
+export struct AdminPublicKey { bytes: Bytes<32>; }
+
 // Ledger declarations (public state)
 export ledger counter: Counter;
 export ledger items: Map<Bytes<32>, MyData>;
-sealed ledger admin: ZswapCoinPublicKey;  // sealed = set only in constructor
-
-// Constructor (runs at deployment)
-constructor() {
-    admin = ownPublicKey();
-}
+export ledger contractAdmin: AdminPublicKey;
 
 // Witness declarations (private data retrieval)
 witness getSecret(): Bytes<32>;
+witness getUserSecret(): UserSecretKey;
+
+// Constructor (runs at deployment). The deployer's derived admin pubkey is
+// frozen into `contractAdmin`; subsequent admin asserts check against it.
+constructor() {
+    contractAdmin = disclose(deriveAdminPublicKey(getUserSecret()));
+}
 
 // Circuit definitions (contract logic)
 export circuit doSomething(arg: Uint<16>): [] { ... }
@@ -415,31 +424,156 @@ describe('MyContract', () => {
 4. Only `topTierAmount` and `status` are disclosed to ledger
 
 ### PIN-Based Identity
+The per-user public key is derived from the witness `userSecretKey` and a PIN — NOT from `ownPublicKey()`. The PIN provides identity rotation (a new PIN yields a new derived pubkey, breaking linkability), while the witness secret provides authentic caller identity that a prover cannot forge.
 ```compact
-export circuit publicKey(sk: Bytes<32>, pin: Uint<16>): Bytes<32> {
+export pure circuit deriveUserPublicKey(sk: UserSecretKey, pin: Uint<16>): UserPublicKey {
     const pinBytes = persistentHash<Uint<16>>(pin);
-    return persistentHash<Vector<3, Bytes<32>>>([
-        pad(32, "zk-credit-scorer:pk"),
-        pinBytes,
-        sk
-    ]);
+    return UserPublicKey {
+        bytes: persistentHash<Vector<3, Bytes<32>>>([
+            pad(32, "zkloan:user:pk:v1"),
+            pinBytes,
+            sk.bytes
+        ])
+    };
 }
 ```
-This creates a deterministic public key from wallet key + PIN, enabling:
-- Multiple identities per wallet
-- PIN change (migration) flow
-- Unlinkable transactions (if combined with rounds)
 
 ### Blacklist Pattern
+The blacklist stores derived `UserPublicKey` values, not wallet addresses. The caller's identity is computed from their witness secret inside the proof; a malicious caller cannot pretend to be a non-blacklisted user.
 ```compact
-export ledger blacklist: Set<ZswapCoinPublicKey>;
+export ledger blacklist: Set<UserPublicKey>;
 
-export circuit requestLoan(...): [] {
-    const zwapPublicKey = ownPublicKey();
-    assert(!blacklist.member(zwapPublicKey), "Requester is blacklisted");
+export circuit requestLoan(secretPin: Uint<16>, ...): [] {
+    const me = deriveUserPublicKey(getUserSecret(), secretPin);
+    const disclosed = disclose(me);
+    assert(!blacklist.member(disclosed), "Requester is blacklisted");
     // ...
 }
 ```
+
+---
+
+## 13. Caller Identity and Authorization
+
+The strict rule: **if your contract is not routing shielded tokens to a target wallet, do not call `ownPublicKey()` anywhere.** All caller identity — both admin and per-user — must derive from a witness-supplied secret.
+
+### Why `ownPublicKey()` cannot identify the caller
+
+`ownPublicKey()` returns a value the prover claims. It is supplied as a parameter to the circuit context, not cryptographically bound to the wallet that signed the transaction. Any caller can pass any 32-byte value. As a result:
+
+- `assert(ownPublicKey() == admin, "...")` is bypassable: any chain reader copies the public `admin` value and supplies it as their own `ownPublicKey()`.
+- `assert(!blacklist.member(ownPublicKey()), "...")` is bypassable: a blacklisted caller supplies a different, non-blacklisted value.
+- `publicKey(ownPublicKey().bytes, pin)` is meaningless as a binding: the caller can claim any "base" pubkey and combine it with their own PIN.
+
+The pattern is structurally the same in every case: `ownPublicKey()` is prover-supplied, so any assertion or identity derivation that depends on it can be bypassed.
+
+### The one valid use
+
+`ownPublicKey()` is correct when the contract is sending shielded tokens *to* the caller — it identifies the recipient address for a Zswap output. The token is delivered to the address the prover claims; if they lie, they lose access to their own tokens. There is no security boundary to bypass.
+
+If your contract does anything other than routing shielded tokens (storing identity-linked state, gating access, tracking per-user records), use witness-derived secrets instead.
+
+### The witness-derived keypair pattern
+
+A single 32-byte `userSecretKey` lives in the caller's private state. The contract derives multiple public keys from it using domain-separated hashes — one per role.
+
+```compact
+pragma language_version >= 0.22 && <= 0.23;
+import CompactStandardLibrary;
+
+export struct UserSecretKey { bytes: Bytes<32>; }
+export struct UserPublicKey { bytes: Bytes<32>; }
+export struct AdminPublicKey { bytes: Bytes<32>; }
+
+export ledger contractAdmin: AdminPublicKey;
+export ledger blacklist: Set<UserPublicKey>;
+
+witness getUserSecret(): UserSecretKey;
+
+constructor() {
+    contractAdmin = disclose(deriveAdminPublicKey(getUserSecret()));
+}
+
+// Per-user identity, PIN-rotatable. Used as the loan map key, blacklist key,
+// or anywhere the contract needs to identify the caller as a specific user.
+export pure circuit deriveUserPublicKey(sk: UserSecretKey, pin: Uint<16>): UserPublicKey {
+    const pinBytes = persistentHash<Uint<16>>(pin);
+    return UserPublicKey {
+        bytes: persistentHash<Vector<3, Bytes<32>>>([
+            pad(32, "yourapp:user:pk:v1"),
+            pinBytes,
+            sk.bytes
+        ])
+    };
+}
+
+// Admin identity, stable across PIN rotation. The deployer's
+// `deriveAdminPublicKey(secret)` is pinned into `contractAdmin` at construction.
+export pure circuit deriveAdminPublicKey(sk: UserSecretKey): AdminPublicKey {
+    return AdminPublicKey {
+        bytes: persistentHash<Vector<2, Bytes<32>>>([
+            pad(32, "yourapp:admin:pk:v1"),
+            sk.bytes
+        ])
+    };
+}
+
+// Admin guard. Replaces `assert(ownPublicKey() == admin, "...")`.
+export circuit adminAction(): [] {
+    assert(contractAdmin == deriveAdminPublicKey(getUserSecret()), "Only admin");
+    // ...
+}
+
+// Per-user identity check inside a user-facing circuit. Replaces
+// `assert(!blacklist.member(ownPublicKey()), ...)` and
+// `publicKey(ownPublicKey().bytes, pin)`.
+export circuit userAction(pin: Uint<16>): [] {
+    const userPk = deriveUserPublicKey(getUserSecret(), pin);
+    const disclosed = disclose(userPk);
+    assert(!blacklist.member(disclosed), "Caller is blacklisted");
+    // use `disclosed.bytes` as the loan/state key for this caller
+}
+
+// Hand admin off without ever transmitting a private key. The new admin
+// generates their own secret, derives their public key off-chain, and shares
+// only the resulting 32-byte value.
+export circuit rotateAdmin(newAdmin: AdminPublicKey): [] {
+    assert(contractAdmin == deriveAdminPublicKey(getUserSecret()), "Only admin");
+    contractAdmin = disclose(newAdmin);
+    return [];
+}
+```
+
+### Witness layer
+
+A single secret in private state powers both the admin and per-user roles. Different domain separators in the contract keep them logically independent.
+
+```typescript
+export type PrivateState = {
+  // ... per-user fields like credit profile, etc. ...
+  userSecretKey: Uint8Array;  // 32 bytes
+};
+
+export const witnesses = {
+  getUserSecret: ({ privateState }: WitnessContext<Ledger, PrivateState>):
+    [PrivateState, { bytes: Uint8Array }] => {
+    if (!privateState.userSecretKey || privateState.userSecretKey.length !== 32) {
+      throw new Error("userSecretKey missing or wrong length");
+    }
+    return [privateState, { bytes: privateState.userSecretKey }];
+  },
+};
+```
+
+### Required properties
+
+1. **Domain separation**: every derivation hashes with a contract-specific string. The same `userSecretKey` produces uncorrelated public keys for distinct roles (admin vs per-user vs anything else you add).
+2. **Witness-only identity**: identity in this contract derives from the witness secret. `ownPublicKey()` is not consulted, so prover claims about the caller's wallet have no effect on assertions.
+3. **Rotation without key transmission**: provide a `rotateAdmin(newAdmin: AdminPublicKey)` circuit. The new admin generates their secret locally and shares only the derived public key.
+4. **Blacklist keyed on derived pubkey**: blacklist a `UserPublicKey`, not a wallet address. The admin obtains a user's `UserPublicKey` from the on-chain `loans` map keys (or out-of-band) — they cannot blacklist by wallet address.
+5. **No `ownPublicKey()` in identity-bearing positions**: any `assert(...ownPublicKey()...)` or `someDerivation(ownPublicKey().bytes, ...)` is a vulnerability. The only acceptable use is identifying the recipient of an outgoing shielded token transfer.
+
+This is the **witness-derived keypair pattern**. Cite it by that name when documenting or recommending it.
 
 ---
 
@@ -453,7 +587,9 @@ export circuit requestLoan(...): [] {
 | Check set membership | `mySet.member(value)` |
 | Insert into map | `myMap.insert(key, value)` |
 | Nested map access | `outer.lookup(k1).lookup(k2)` |
-| Get current user | `ownPublicKey()` |
+| Identify a Zswap token recipient (the only valid use) | `ownPublicKey()` |
+| Identify the caller as a specific user | `deriveUserPublicKey(getUserSecret(), pin)` |
+| Authorize admin caller | `assert(contractAdmin == deriveAdminPublicKey(getUserSecret()), "...")` |
 | Hash for storage | `persistentHash<T>(value)` |
 | Hash with randomness | `persistentCommit<T>(value, rand)` |
 | Declare disclosure | `disclose(witnessValue)` |
@@ -461,7 +597,7 @@ export circuit requestLoan(...): [] {
 
 ---
 
-*Last updated: Based on Compact language version 0.19, compiler version 0.26.0*
+*Last updated: Compact language version >= 0.22 && <= 0.23, compiler version 0.31.0. Section 13 (Admin Authorization) reflects the witness-derived keypair pattern that replaces an earlier `ownPublicKey()`-based pattern. The earlier pattern was insecure and has been removed throughout the repository.*
 
 **References:**
 - [Explicit Disclosure](https://docs.midnight.network/develop/reference/compact/explicit_disclosure) - Official Midnight documentation

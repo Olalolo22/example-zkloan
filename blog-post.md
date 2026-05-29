@@ -4,6 +4,10 @@
 
 ---
 
+> **Update (2026):** Earlier versions of this post used `ownPublicKey()` for caller identity — for admin checks, blacklist lookups, and PIN-bound per-user key derivation. That whole pattern is insecure: `ownPublicKey()` returns a value the prover claims, with no cryptographic binding to the transaction signer. Any assertion or identity derivation that depends on it is bypassable. The code examples below have been updated to derive all caller identity from a single witness-supplied `userSecretKey`. `ownPublicKey()` is no longer called by this contract. See the [contract source](contract/src/zkloan-credit-scorer.compact) for the current authoritative implementation.
+
+---
+
 ## Introduction
 
 Lending has a privacy paradox. To get a loan, you must prove you're creditworthy. To prove you're creditworthy, you must expose your credit score, income, employment history, and other sensitive financial data. This information flows through credit bureaus, gets stored in centralized databases, and leaves you vulnerable to breaches, discrimination, and unwanted profiling.
@@ -126,29 +130,67 @@ Notice how `amountRequested` is a public parameter (the user openly states how m
 Compact provides familiar data structures for on-chain state:
 
 ```compact
-export ledger blacklist: Set<ZswapCoinPublicKey>;
+export ledger blacklist: Set<UserPublicKey>;
 export ledger loans: Map<Bytes<32>, Map<Uint<16>, LoanApplication>>;
 export ledger onGoingPinMigration: Map<Bytes<32>, Uint<16>>;
-export ledger admin: ZswapCoinPublicKey;
+export ledger contractAdmin: AdminPublicKey;
 ```
 
 - **Set**: Unordered collection of unique values (used for blacklist)
 - **Map**: Key-value storage (used for loans per user)
 - **Nested Maps**: `loans` maps user public keys to their loan history
 
-### Identity: `ownPublicKey()` and Authorization
+### Identity and Authorization
 
-Every transaction on Midnight has a caller identity. The `ownPublicKey()` function returns the caller's Zswap public key, enabling authorization patterns:
+`ownPublicKey()` returns the value the prover claims as their Zswap public key. It is supplied to the circuit context as a parameter; the protocol does not cross-check it against the wallet that signed the transaction. Any caller can pass any 32-byte value. As a result, any assertion that depends on `ownPublicKey()` — for admin auth, blacklist membership, or PIN-bound identity derivation — is bypassable. The pattern is wrong everywhere it appears, not just in admin checks.
+
+The only safe use of `ownPublicKey()` is identifying the recipient of an outgoing shielded token transfer. If the prover lies, they lose access to their own tokens; there is no security boundary to bypass. For everything else — gating access, tracking per-user state, blacklisting — the caller's identity must come from a witness-supplied secret.
+
+ZKLoan implements this with a single `userSecretKey` in private state and two domain-separated derivations: one for the admin role, one for per-user PIN-bound identity.
 
 ```compact
-export circuit blacklistUser(account: ZswapCoinPublicKey): [] {
-    assert(ownPublicKey() == admin, "Only admin can blacklist users");
+export struct UserSecretKey { bytes: Bytes<32>; }
+export struct UserPublicKey { bytes: Bytes<32>; }
+export struct AdminPublicKey { bytes: Bytes<32>; }
+
+export ledger contractAdmin: AdminPublicKey;
+export ledger blacklist: Set<UserPublicKey>;
+witness getUserSecret(): UserSecretKey;
+
+constructor() {
+    contractAdmin = disclose(deriveAdminPublicKey(getUserSecret()));
+}
+
+export pure circuit deriveUserPublicKey(sk: UserSecretKey, pin: Uint<16>): UserPublicKey {
+    const pinBytes = persistentHash<Uint<16>>(pin);
+    return UserPublicKey {
+        bytes: persistentHash<Vector<3, Bytes<32>>>([
+            pad(32, "zkloan:user:pk:v1"),
+            pinBytes,
+            sk.bytes
+        ])
+    };
+}
+
+export pure circuit deriveAdminPublicKey(sk: UserSecretKey): AdminPublicKey {
+    return AdminPublicKey {
+        bytes: persistentHash<Vector<2, Bytes<32>>>([
+            pad(32, "zkloan:admin:pk:v1"),
+            sk.bytes
+        ])
+    };
+}
+
+export circuit blacklistUser(account: UserPublicKey): [] {
+    assert(contractAdmin == deriveAdminPublicKey(getUserSecret()), "Only admin can blacklist users");
     blacklist.insert(disclose(account));
     return [];
 }
 ```
 
-This is similar to Solidity's `msg.sender`, but integrated with Midnight's shielded identity system.
+The deployer holds a 32-byte `userSecretKey` in private state; the ledger stores only its derived admin public key. Inside the ZK circuit, the equality `contractAdmin == deriveAdminPublicKey(getUserSecret())` enforces that the caller possesses the preimage. The blacklist stores `UserPublicKey` values — also witness-derived — so a malicious caller cannot bypass it by claiming a different `ownPublicKey()`. The domain-separator strings (`"zkloan:admin:pk:v1"` vs `"zkloan:user:pk:v1"`) keep the admin and per-user pubkeys uncorrelated even though they share a secret.
+
+Handing the admin role over uses a separate `rotateAdmin(newAdmin: AdminPublicKey)` circuit. The new admin generates their own `userSecretKey` locally, derives their admin public key off-chain, and shares only the resulting 32 bytes — no private key is ever transmitted.
 
 ---
 
@@ -198,30 +240,31 @@ ZKLoan solves this with a pattern that processes a fixed batch per transaction a
 
 ```compact
 export circuit changePin(oldPin: Uint<16>, newPin: Uint<16>): [] {
-    const oldPk = publicKey(zwapPublicKey.bytes, oldPin);
-    const newPk = publicKey(zwapPublicKey.bytes, newPin);
+    // Identity derives from the witness secret + PIN, never from ownPublicKey()
+    const oldPk = disclose(deriveUserPublicKey(getUserSecret(), oldPin)).bytes;
+    const newPk = disclose(deriveUserPublicKey(getUserSecret(), newPin)).bytes;
 
     // Track migration progress in ledger state
-    if (!onGoingPinMigration.member(disclose(oldPk))) {
-        onGoingPinMigration.insert(disclose(oldPk), 0);
+    if (!onGoingPinMigration.member(oldPk)) {
+        onGoingPinMigration.insert(oldPk, 0);
     }
 
-    const lastMigrated = onGoingPinMigration.lookup(disclose(oldPk));
+    const lastMigrated = onGoingPinMigration.lookup(oldPk);
 
     // Process exactly 5 loans per transaction (fixed iteration)
     for (const i of 0..5) {
-        if (onGoingPinMigration.member(disclose(oldPk))) {
+        if (onGoingPinMigration.member(oldPk)) {
             const sourceId = (lastMigrated + i + 1) as Uint<16>;
 
-            if (loans.lookup(disclose(oldPk)).member(sourceId)) {
+            if (loans.lookup(oldPk).member(sourceId)) {
                 // Migrate this loan
-                const loan = loans.lookup(disclose(oldPk)).lookup(sourceId);
-                loans.lookup(disclose(newPk)).insert(destinationId, disclose(loan));
-                loans.lookup(disclose(oldPk)).remove(sourceId);
-                onGoingPinMigration.insert(disclose(oldPk), sourceId);
+                const loan = loans.lookup(oldPk).lookup(sourceId);
+                loans.lookup(newPk).insert(destinationId, disclose(loan));
+                loans.lookup(oldPk).remove(sourceId);
+                onGoingPinMigration.insert(oldPk, sourceId);
             } else {
                 // No more loans - clean up
-                onGoingPinMigration.remove(disclose(oldPk));
+                onGoingPinMigration.remove(oldPk);
             }
         }
     }
@@ -308,11 +351,14 @@ The user can then respond to the proposal:
 ```compact
 export circuit respondToLoan(loanId: Uint<16>, secretPin: Uint<16>,
                              accept: Boolean): [] {
-    // Verify user identity via PIN-derived public key
-    const requesterPubKey = publicKey(ownPublicKey().bytes, secretPin);
+    // Caller identity is derived from the witness secret + PIN. The contract
+    // never reads `ownPublicKey()`, so a malicious caller cannot impersonate
+    // the loan owner by claiming a different wallet pubkey.
+    const requesterPubKey = deriveUserPublicKey(getUserSecret(), secretPin);
+    const disclosed = disclose(requesterPubKey);
 
     // Ensure loan exists and is in Proposed status
-    const existingLoan = loans.lookup(requesterPubKey).lookup(loanId);
+    const existingLoan = loans.lookup(disclosed.bytes).lookup(loanId);
     assert(existingLoan.status == LoanStatus.Proposed,
            "Loan is not in Proposed status");
 
@@ -323,7 +369,7 @@ export circuit respondToLoan(loanId: Uint<16>, secretPin: Uint<16>,
         : LoanApplication { authorizedAmount: 0,
                            status: LoanStatus.NotAccepted };
 
-    loans.lookup(requesterPubKey).insert(loanId, disclose(updatedLoan));
+    loans.lookup(disclosed.bytes).insert(loanId, disclose(updatedLoan));
 }
 ```
 

@@ -113,7 +113,7 @@ import { NetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 networkId: NetworkId.Testnet
 
 // NEW
-networkId: 'testnet-02'  // 'mainnet' | 'devnet' | 'undeployed'
+networkId: 'preprod'  // 'mainnet' | 'preprod' | 'undeployed'
 ```
 
 ### 7. Package Renames
@@ -210,7 +210,8 @@ transientHash<T>(value)            // For in-proof computation
 persistentCommit<T>(value, rand)   // For ledger storage
 transientCommit<T>(value, rand)    // For in-proof computation
 
-// Identity
+// Identity (caller identifier only — NOT a proof of key ownership;
+// never use the return value as the RHS of an authorization assert)
 ownPublicKey()                     // Returns caller's ZswapCoinPublicKey
 
 // Padding strings
@@ -713,19 +714,21 @@ function calculateTier(profile: { creditScore: number; monthlyIncome: number; mo
 
 ```compact
 export circuit requestLoan(amountRequested: Uint<16>, secretPin: Uint<16>): [] {
-    const zwapPublicKey = ownPublicKey();
-    const requesterPubKey = publicKey(zwapPublicKey.bytes, secretPin);
+    // Caller identity derives from the witness secret + PIN, never ownPublicKey()
+    const requesterPubKey = deriveUserPublicKey(getUserSecret(), secretPin);
+    const disclosed = disclose(requesterPubKey);
 
     // Safety checks
-    assert(!blacklist.member(zwapPublicKey), "Requester is blacklisted");
-    assert(!onGoingPinMigration.member(disclose(requesterPubKey)), "PIN migration in progress");
+    assert(!blacklist.member(disclosed), "Requester is blacklisted");
+    assert(!onGoingPinMigration.member(disclosed.bytes), "PIN migration in progress");
 
-    // Private evaluation
-    const [topTierAmount, status] = evaluateApplicant();
+    // Private evaluation, bound to this caller's derived identity
+    const userPubKeyHash = transientHash<Bytes<32>>(disclosed.bytes);
+    const [topTierAmount, status] = evaluateApplicant(userPubKeyHash);
 
     // Selective disclosure
     createLoan(
-        disclose(requesterPubKey),
+        disclosed.bytes,
         amountRequested,
         disclose(topTierAmount),
         disclose(status)
@@ -821,7 +824,8 @@ error TS6133: 'ttl' is declared but its value is never read
 | Check set membership | `mySet.member(value)` |
 | Map lookup | `myMap.lookup(key)` |
 | Nested map | `outer.lookup(k1).lookup(k2)` |
-| Get caller | `ownPublicKey()` |
+| Get caller (identifier only; never use in an authorization `assert`) | `ownPublicKey()` |
+| Authorize admin | `assert(contractAdmin == deriveAdminPublicKey(getAdminSecret()), "...")` |
 | Hash for storage | `persistentHash<T>(value)` |
 | Commit with randomness | `persistentCommit<T>(value, rand)` |
 | Declare disclosure | `disclose(value)` |

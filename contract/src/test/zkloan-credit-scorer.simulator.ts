@@ -30,7 +30,7 @@ import {
 } from "../managed/zkloan-credit-scorer/contract/index.js";
 import { type ZKLoanCreditScorerPrivateState, witnesses } from "../witnesses.js";
 import { createEitherTestUser } from "./utils/address.js";
-import { createSignedUserProfile, generateProviderKeyPair } from "./utils/test-data.js";
+import { createSignedUserProfile, generateUserSecret, generateProviderKeyPair } from "./utils/test-data.js";
 
 const bytes32Type = new CompactTypeBytes(32);
 
@@ -40,6 +40,7 @@ export class ZKLoanCreditScorerSimulator {
   readonly providerSk: bigint;
   readonly providerPk: JubjubPoint;
   readonly providerId: bigint = 1n;
+  readonly userSecretKey: Uint8Array;
 
   constructor() {
     const user = createEitherTestUser("Alice");
@@ -50,13 +51,21 @@ export class ZKLoanCreditScorerSimulator {
     this.providerSk = keyPair.sk;
     this.providerPk = keyPair.pk;
 
-    // Create initial private state with attestation for user profile 0
-    const userPubKeyHash = this.computeUserPubKeyHash(user.left.bytes, 1234n);
+    // The single per-instance user secret. The deployer's
+    // `deriveAdminPublicKey(userSecret)` gets pinned into `contractAdmin` at
+    // construction, so the deployer is admin. The same secret derives the
+    // deployer's per-user identity (PIN-bound) via `deriveUserPublicKey`.
+    this.userSecretKey = generateUserSecret();
+
+    // Initial private state. `userPubKeyHash` for the attestation message is
+    // now derived from the witness secret, not from `ownPublicKey()`.
+    const userPubKeyHash = this.computeUserPubKeyHash(this.userSecretKey, 1234n);
     const initialPrivateState: ZKLoanCreditScorerPrivateState = createSignedUserProfile(
       0,
       this.providerSk,
       userPubKeyHash,
       this.providerId,
+      this.userSecretKey,
     );
 
     const {
@@ -77,9 +86,38 @@ export class ZKLoanCreditScorerSimulator {
     this.registerProvider(this.providerId, this.providerPk);
   }
 
-  public computeUserPubKeyHash(userZwapKeyBytes: Uint8Array, pin: bigint): bigint {
-    const pubKey = pureCircuits.publicKey(userZwapKeyBytes, pin);
+  // Off-chain derivation of the per-user public key (PIN-bound). Uses the
+  // same pure circuit the contract uses, so the bytes match exactly.
+  public deriveUserPublicKey(userSecret: Uint8Array, pin: bigint): Uint8Array {
+    return pureCircuits.deriveUserPublicKey({ bytes: userSecret }, pin).bytes;
+  }
+
+  public deriveAdminPublicKey(userSecret: Uint8Array): Uint8Array {
+    return pureCircuits.deriveAdminPublicKey({ bytes: userSecret }).bytes;
+  }
+
+  public generateUserSecret(): Uint8Array {
+    return generateUserSecret();
+  }
+
+  // The attestation message binds to the derived user pubkey via
+  // transientHash, exactly as the contract does in `requestLoan`.
+  public computeUserPubKeyHash(userSecret: Uint8Array, pin: bigint): bigint {
+    const pubKey = this.deriveUserPublicKey(userSecret, pin);
     return transientHash(bytes32Type, pubKey);
+  }
+
+  // Swap the simulator's local user secret. Tests use this to act as a
+  // non-admin caller (after rotating admin to someone else's pubkey) or to
+  // simulate a different user impersonating from the same browser instance.
+  public setUserSecret(secret: Uint8Array): void {
+    this.circuitContext = {
+      ...this.circuitContext,
+      currentPrivateState: {
+        ...this.circuitContext.currentPrivateState,
+        userSecretKey: secret,
+      },
+    };
   }
 
   public getLedger(): Ledger {
@@ -99,18 +137,18 @@ export class ZKLoanCreditScorerSimulator {
     return ledger(this.circuitContext.currentQueryContext.state);
   }
 
-  public blacklistUser(account: Uint8Array): Ledger {
+  public blacklistUser(userPubKey: Uint8Array): Ledger {
     this.circuitContext = this.contract.impureCircuits.blacklistUser(
       this.circuitContext,
-      { bytes: account }
+      { bytes: userPubKey }
     ).context;
     return ledger(this.circuitContext.currentQueryContext.state);
   }
 
-  public removeBlacklistUser(account: Uint8Array): Ledger {
+  public removeBlacklistUser(userPubKey: Uint8Array): Ledger {
     this.circuitContext = this.contract.impureCircuits.removeBlacklistUser(
       this.circuitContext,
-      { bytes: account }
+      { bytes: userPubKey }
     ).context;
     return ledger(this.circuitContext.currentQueryContext.state);
   }
@@ -134,10 +172,10 @@ export class ZKLoanCreditScorerSimulator {
     return ledger(this.circuitContext.currentQueryContext.state);
   }
 
-  public transferAdmin(newAdmin: Uint8Array): Ledger {
-    this.circuitContext = this.contract.impureCircuits.transferAdmin(
+  public rotateAdmin(newAdminPublicKey: Uint8Array): Ledger {
+    this.circuitContext = this.contract.impureCircuits.rotateAdmin(
       this.circuitContext,
-      { bytes: newAdmin }
+      { bytes: newAdminPublicKey }
     ).context;
     return ledger(this.circuitContext.currentQueryContext.state);
   }
@@ -157,14 +195,6 @@ export class ZKLoanCreditScorerSimulator {
       providerId
     ).context;
     return ledger(this.circuitContext.currentQueryContext.state);
-  }
-
-  public publicKey(sk: Uint8Array, pin: bigint): Uint8Array {
-    return this.contract.circuits.publicKey(
-      this.circuitContext,
-      sk,
-      pin
-    ).result;
   }
 
   public createTestUser(str: string): any {

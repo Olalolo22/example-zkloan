@@ -70,13 +70,10 @@ export const witnesses = {
 
   getUserSecret: ({
     privateState,
-  }: WitnessContext<Ledger, ZKLoanCreditScorerPrivateState>): [
-    ZKLoanCreditScorerPrivateState,
-    { bytes: Uint8Array },
-  ] => {
+  }: WitnessContext<Ledger, ZKLoanCreditScorerPrivateState>): [ZKLoanCreditScorerPrivateState, Uint8Array] => {
     if (!privateState.userSecretKey || privateState.userSecretKey.length !== 32) {
       throw new Error('getUserSecret: userSecretKey is missing or wrong length');
     }
-    return [privateState, { bytes: privateState.userSecretKey }];
+    return [privateState, privateState.userSecretKey];
   },
 };

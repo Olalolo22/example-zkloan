@@ -80,11 +80,11 @@ export class ZKLoanCreditScorerSimulator {
   // Off-chain derivation of the per-user public key (PIN-bound). Uses the
   // same pure circuit the contract uses, so the bytes match exactly.
   public deriveUserPublicKey(userSecret: Uint8Array, pin: bigint): Uint8Array {
-    return pureCircuits.deriveUserPublicKey({ bytes: userSecret }, pin).bytes;
+    return pureCircuits.deriveUserPublicKey(userSecret, pin);
   }
 
   public deriveAdminPublicKey(userSecret: Uint8Array): Uint8Array {
-    return pureCircuits.deriveAdminPublicKey({ bytes: userSecret }).bytes;
+    return pureCircuits.deriveAdminPublicKey(userSecret);
   }
 
   public generateUserSecret(): Uint8Array {
@@ -129,16 +129,12 @@ export class ZKLoanCreditScorerSimulator {
   }
 
   public blacklistUser(userPubKey: Uint8Array): Ledger {
-    this.circuitContext = this.contract.impureCircuits.blacklistUser(this.circuitContext, {
-      bytes: userPubKey,
-    }).context;
+    this.circuitContext = this.contract.impureCircuits.blacklistUser(this.circuitContext, userPubKey).context;
     return ledger(this.circuitContext.currentQueryContext.state);
   }
 
   public removeBlacklistUser(userPubKey: Uint8Array): Ledger {
-    this.circuitContext = this.contract.impureCircuits.removeBlacklistUser(this.circuitContext, {
-      bytes: userPubKey,
-    }).context;
+    this.circuitContext = this.contract.impureCircuits.removeBlacklistUser(this.circuitContext, userPubKey).context;
     return ledger(this.circuitContext.currentQueryContext.state);
   }
 
@@ -158,9 +154,7 @@ export class ZKLoanCreditScorerSimulator {
   }
 
   public rotateAdmin(newAdminPublicKey: Uint8Array): Ledger {
-    this.circuitContext = this.contract.impureCircuits.rotateAdmin(this.circuitContext, {
-      bytes: newAdminPublicKey,
-    }).context;
+    this.circuitContext = this.contract.impureCircuits.rotateAdmin(this.circuitContext, newAdminPublicKey).context;
     return ledger(this.circuitContext.currentQueryContext.state);
   }
 

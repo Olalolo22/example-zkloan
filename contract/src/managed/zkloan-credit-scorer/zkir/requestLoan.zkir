@@ -15,7 +15,7 @@
     { "op": "constrain_bits", "var": 6, "bits": 248 },
     { "op": "persistent_hash", "alignment": [{ "tag": "atom", "value": { "length": 2, "tag": "bytes" } }], "inputs": [1] },
     { "op": "load_imm", "imm": "7A6B6C6F616E3A757365723A706B3A7631" },
-    { "op": "persistent_hash", "alignment": [{ "tag": "atom", "value": { "length": 32, "tag": "bytes" } }, { "tag": "atom", "value": { "length": 32, "tag": "bytes" } }, { "tag": "atom", "value": { "length": 32, "tag": "bytes" } }], "inputs": [3, 9, 7, 8, 5, 6] },
+    { "op": "persistent_hash", "alignment": [{ "tag": "atom", "value": { "length": 17, "tag": "bytes" } }, { "tag": "atom", "value": { "length": 32, "tag": "bytes" } }, { "tag": "atom", "value": { "length": 32, "tag": "bytes" } }], "inputs": [9, 7, 8, 5, 6] },
     { "op": "load_imm", "imm": "30" },
     { "op": "declare_pub_input", "var": 12 },
     { "op": "pi_skip", "guard": 2, "count": 1 },

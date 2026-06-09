@@ -158,17 +158,17 @@ describe('ZKLoanCreditScorer smart contract', () => {
     let ledger = simulator.getLedger();
 
     // Check Bob is not blacklisted
-    expect(ledger.blacklist.member({ bytes: bobZwapKey })).toBeFalsy();
+    expect(ledger.blacklist.member(bobZwapKey)).toBeFalsy();
 
     // Blacklist Bob
     simulator.blacklistUser(bobZwapKey);
     ledger = simulator.getLedger();
-    expect(ledger.blacklist.member({ bytes: bobZwapKey })).toBeTruthy();
+    expect(ledger.blacklist.member(bobZwapKey)).toBeTruthy();
 
     // Remove Bob from blacklist
     simulator.removeBlacklistUser(bobZwapKey);
     ledger = simulator.getLedger();
-    expect(ledger.blacklist.member({ bytes: bobZwapKey })).toBeFalsy();
+    expect(ledger.blacklist.member(bobZwapKey)).toBeFalsy();
   });
 
   it('migrates a small number of loans (1 batch) and cleans up', () => {
@@ -395,7 +395,7 @@ describe('ZKLoanCreditScorer smart contract', () => {
     simulator.rotateAdmin(newAdminPublicKey);
 
     const ledger = simulator.getLedger();
-    expect(ledger.contractAdmin.bytes).toEqual(newAdminPublicKey);
+    expect(ledger.contractAdmin).toEqual(newAdminPublicKey);
   });
 
   // ============================================================
@@ -613,12 +613,12 @@ describe('ZKLoanCreditScorer smart contract', () => {
     // Blacklist Bob
     simulator.blacklistUser(bobZwapKey);
     let ledger = simulator.getLedger();
-    expect(ledger.blacklist.member({ bytes: bobZwapKey })).toBeTruthy();
+    expect(ledger.blacklist.member(bobZwapKey)).toBeTruthy();
 
     // Blacklist Bob again - should not throw
     simulator.blacklistUser(bobZwapKey);
     ledger = simulator.getLedger();
-    expect(ledger.blacklist.member({ bytes: bobZwapKey })).toBeTruthy();
+    expect(ledger.blacklist.member(bobZwapKey)).toBeTruthy();
   });
 
   it('removing a non-blacklisted user from blacklist does not throw', () => {
@@ -627,12 +627,12 @@ describe('ZKLoanCreditScorer smart contract', () => {
 
     // Bob is not blacklisted
     let ledger = simulator.getLedger();
-    expect(ledger.blacklist.member({ bytes: bobZwapKey })).toBeFalsy();
+    expect(ledger.blacklist.member(bobZwapKey)).toBeFalsy();
 
     // Remove Bob from blacklist - should not throw (idempotent)
     simulator.removeBlacklistUser(bobZwapKey);
     ledger = simulator.getLedger();
-    expect(ledger.blacklist.member({ bytes: bobZwapKey })).toBeFalsy();
+    expect(ledger.blacklist.member(bobZwapKey)).toBeFalsy();
   });
 
   // ============================================================
@@ -722,8 +722,8 @@ describe('ZKLoanCreditScorer smart contract', () => {
     simulator.blacklistUser(charlieZwapKey);
 
     const ledger = simulator.getLedger();
-    expect(ledger.contractAdmin.bytes).toEqual(newAdminPublicKey);
-    expect(ledger.blacklist.member({ bytes: charlieZwapKey })).toBeTruthy();
+    expect(ledger.contractAdmin).toEqual(newAdminPublicKey);
+    expect(ledger.blacklist.member(charlieZwapKey)).toBeTruthy();
   });
 
   it('old admin cannot perform admin operations after rotation', () => {
@@ -744,14 +744,14 @@ describe('ZKLoanCreditScorer smart contract', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
 
     let ledger = simulator.getLedger();
-    expect(ledger.contractAdmin.bytes).toEqual(simulator.deriveAdminPublicKey(simulator.userSecretKey));
+    expect(ledger.contractAdmin).toEqual(simulator.deriveAdminPublicKey(simulator.userSecretKey));
 
     // Rotate to Bob
     const bobAdminSecret = simulator.generateUserSecret();
     const bobAdminPublicKey = simulator.deriveAdminPublicKey(bobAdminSecret);
     simulator.rotateAdmin(bobAdminPublicKey);
     ledger = simulator.getLedger();
-    expect(ledger.contractAdmin.bytes).toEqual(bobAdminPublicKey);
+    expect(ledger.contractAdmin).toEqual(bobAdminPublicKey);
   });
 
   // ============================================================

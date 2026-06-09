@@ -40,15 +40,9 @@ struct Applicant {
 // `ownPublicKey()` is never used: it returns a prover-claimed value with no
 // cryptographic binding to the transaction signer, so any assertion that
 // depends on it is bypassable.
-export struct UserSecretKey {
-    bytes: Bytes<32>;
-}
-export struct UserPublicKey {
-    bytes: Bytes<32>;
-}
-export struct AdminPublicKey {
-    bytes: Bytes<32>;
-}
+export new type UserSecretKey = Bytes<32>;
+export new type UserPublicKey = Bytes<32>;
+export new type AdminPublicKey = Bytes<32>;
 
 constructor() {
     contractAdmin = disclose(deriveAdminPublicKey(getUserSecret()));
@@ -68,25 +62,21 @@ witness getUserSecret(): UserSecretKey;
 // map key and the blacklist key.
 export pure circuit deriveUserPublicKey(sk: UserSecretKey, pin: Uint<16>): UserPublicKey {
     const pinBytes = persistentHash<Uint<16>>(pin);
-    return UserPublicKey {
-        bytes: persistentHash<Vector<3, Bytes<32>>>([
-            pad(32, "zkloan:user:pk:v1"),
-            pinBytes,
-            sk.bytes
-        ])
-    };
+    return persistentHash<[Bytes<17>, Bytes<32>, UserSecretKey]>([
+        "zkloan:user:pk:v1",
+        pinBytes,
+        sk
+    ]) as UserPublicKey;
 }
 
 // Admin identity. No PIN binding — the admin role is stable across the
 // admin's PIN rotations. The deployer's `deriveAdminPublicKey(secret)` is
 // frozen into `contractAdmin` at construction.
 export pure circuit deriveAdminPublicKey(sk: UserSecretKey): AdminPublicKey {
-    return AdminPublicKey {
-        bytes: persistentHash<Vector<2, Bytes<32>>>([
-            pad(32, "zkloan:admin:pk:v1"),
-            sk.bytes
-        ])
-    };
+    return persistentHash<[Bytes<18>, UserSecretKey]>([
+        "zkloan:admin:pk:v1",
+        sk
+    ]) as AdminPublicKey;
 }
 
 export circuit requestLoan(amountRequested: Uint<16>, secretPin: Uint<16>): [] {
@@ -94,19 +84,19 @@ export circuit requestLoan(amountRequested: Uint<16>, secretPin: Uint<16>): [] {
     const requesterPubKey = deriveUserPublicKey(getUserSecret(), secretPin);
     const disclosedRequesterPubKey = disclose(requesterPubKey);
     assert(!blacklist.member(disclosedRequesterPubKey), "Requester is blacklisted");
-    assert(!onGoingPinMigration.member(disclosedRequesterPubKey.bytes),
+    assert(!onGoingPinMigration.member(disclosedRequesterPubKey as Bytes<32>),
            "PIN migration is in progress for this user");
-    const userPubKeyHash = transientHash<Bytes<32>>(disclosedRequesterPubKey.bytes);
+    const userPubKeyHash = transientHash<Bytes<32>>(disclosedRequesterPubKey as Bytes<32>);
     const [topTierAmount, status] = evaluateApplicant(userPubKeyHash);
     const disclosedTopTierAmount = disclose(topTierAmount);
     const disclosedStatus = disclose(status);
-    createLoan(disclosedRequesterPubKey.bytes, amountRequested, disclosedTopTierAmount, disclosedStatus);
+    createLoan(disclosedRequesterPubKey as Bytes<32>, amountRequested, disclosedTopTierAmount, disclosedStatus);
 }
 
 export circuit respondToLoan(loanId: Uint<16>, secretPin: Uint<16>, accept: Boolean): [] {
     const requesterPubKey = deriveUserPublicKey(getUserSecret(), secretPin);
     const disclosedRequesterPubKey = disclose(requesterPubKey);
-    const disclosedPubKey = disclosedRequesterPubKey.bytes;
+    const disclosedPubKey = disclosedRequesterPubKey as Bytes<32>;
     const disclosedLoanId = disclose(loanId);
 
     assert(!blacklist.member(disclosedRequesterPubKey), "User is blacklisted");
@@ -221,8 +211,8 @@ export circuit changePin(oldPin: Uint<16>, newPin: Uint<16>): [] {
     assert(!blacklist.member(disclosedOldUserPk), "User is blacklisted");
     assert(oldPin != newPin, "New PIN must be different from old PIN");
 
-    const disclosedOldPk = disclosedOldUserPk.bytes;
-    const disclosedNewPk = disclosedNewUserPk.bytes;
+    const disclosedOldPk = disclosedOldUserPk as Bytes<32>;
+    const disclosedNewPk = disclosedNewUserPk as Bytes<32>;
 
     assert(loans.member(disclosedOldPk), "Old PIN does not match any user");
 

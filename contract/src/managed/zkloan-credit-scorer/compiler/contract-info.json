@@ -11,17 +11,12 @@
         {
           "name": "sk",
           "type": {
-            "type-name": "Struct",
+            "type-name": "Alias",
             "name": "UserSecretKey",
-            "elements": [
-              {
-                "name": "bytes",
-                "type": {
-                  "type-name": "Bytes",
-                  "length": 32
-                }
-              }
-            ]
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
           }
         },
         {
@@ -33,17 +28,12 @@
         }
       ],
       "result-type": {
-        "type-name": "Struct",
+        "type-name": "Alias",
         "name": "UserPublicKey",
-        "elements": [
-          {
-            "name": "bytes",
-            "type": {
-              "type-name": "Bytes",
-              "length": 32
-            }
-          }
-        ]
+        "type": {
+          "type-name": "Bytes",
+          "length": 32
+        }
       }
     },
     {
@@ -54,32 +44,22 @@
         {
           "name": "sk",
           "type": {
-            "type-name": "Struct",
+            "type-name": "Alias",
             "name": "UserSecretKey",
-            "elements": [
-              {
-                "name": "bytes",
-                "type": {
-                  "type-name": "Bytes",
-                  "length": 32
-                }
-              }
-            ]
-          }
-        }
-      ],
-      "result-type": {
-        "type-name": "Struct",
-        "name": "AdminPublicKey",
-        "elements": [
-          {
-            "name": "bytes",
             "type": {
               "type-name": "Bytes",
               "length": 32
             }
           }
-        ]
+        }
+      ],
+      "result-type": {
+        "type-name": "Alias",
+        "name": "AdminPublicKey",
+        "type": {
+          "type-name": "Bytes",
+          "length": 32
+        }
       }
     },
     {
@@ -148,17 +128,12 @@
         {
           "name": "account",
           "type": {
-            "type-name": "Struct",
+            "type-name": "Alias",
             "name": "UserPublicKey",
-            "elements": [
-              {
-                "name": "bytes",
-                "type": {
-                  "type-name": "Bytes",
-                  "length": 32
-                }
-              }
-            ]
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
           }
         }
       ],
@@ -176,17 +151,12 @@
         {
           "name": "account",
           "type": {
-            "type-name": "Struct",
+            "type-name": "Alias",
             "name": "UserPublicKey",
-            "elements": [
-              {
-                "name": "bytes",
-                "type": {
-                  "type-name": "Bytes",
-                  "length": 32
-                }
-              }
-            ]
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
           }
         }
       ],
@@ -253,17 +223,12 @@
         {
           "name": "newAdmin",
           "type": {
-            "type-name": "Struct",
+            "type-name": "Alias",
             "name": "AdminPublicKey",
-            "elements": [
-              {
-                "name": "bytes",
-                "type": {
-                  "type-name": "Bytes",
-                  "length": 32
-                }
-              }
-            ]
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
           }
         }
       ],
@@ -437,17 +402,12 @@
       "arguments": [
       ],
       "result type": {
-        "type-name": "Struct",
+        "type-name": "Alias",
         "name": "UserSecretKey",
-        "elements": [
-          {
-            "name": "bytes",
-            "type": {
-              "type-name": "Bytes",
-              "length": 32
-            }
-          }
-        ]
+        "type": {
+          "type-name": "Bytes",
+          "length": 32
+        }
       }
     }
   ],
@@ -460,17 +420,12 @@
       "exported": true,
       "storage": "Set",
       "type": {
-        "type-name": "Struct",
+        "type-name": "Alias",
         "name": "UserPublicKey",
-        "elements": [
-          {
-            "name": "bytes",
-            "type": {
-              "type-name": "Bytes",
-              "length": 32
-            }
-          }
-        ]
+        "type": {
+          "type-name": "Bytes",
+          "length": 32
+        }
       }
     },
     {
@@ -536,17 +491,12 @@
       "exported": true,
       "storage": "Cell",
       "type": {
-        "type-name": "Struct",
+        "type-name": "Alias",
         "name": "AdminPublicKey",
-        "elements": [
-          {
-            "name": "bytes",
-            "type": {
-              "type-name": "Bytes",
-              "length": 32
-            }
-          }
-        ]
+        "type": {
+          "type-name": "Bytes",
+          "length": 32
+        }
       }
     },
     {

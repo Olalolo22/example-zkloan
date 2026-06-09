@@ -530,7 +530,7 @@ export const ZKLoanProvider: React.FC<Readonly<ZKLoanProviderProps>> = ({ logger
 
     // 1. Compute user pub key hash for attestation
     setFlowMessage('Computing identity for attestation...');
-    const pubKey = ZKLoanCreditScorer.pureCircuits.deriveUserPublicKey({ bytes: privateState.userSecretKey }, pin).bytes;
+    const pubKey = ZKLoanCreditScorer.pureCircuits.deriveUserPublicKey(privateState.userSecretKey, pin);
     const userPubKeyHash = transientHash(bytes32Type, pubKey);
     logger.info('Computed userPubKeyHash for attestation');
 
@@ -596,7 +596,7 @@ export const ZKLoanProvider: React.FC<Readonly<ZKLoanProviderProps>> = ({ logger
         const contractState = await publicDataProviderRef.queryContractState(contractAddressRef);
         if (contractState) {
           const ledgerState = ZKLoanCreditScorer.ledger(contractState.data);
-          const userPublicKey = ZKLoanCreditScorer.pureCircuits.deriveUserPublicKey({ bytes: privateState.userSecretKey }, pin).bytes;
+          const userPublicKey = ZKLoanCreditScorer.pureCircuits.deriveUserPublicKey(privateState.userSecretKey, pin);
 
           if (ledgerState.loans.member(userPublicKey)) {
             const userLoansMap = ledgerState.loans.lookup(userPublicKey);
@@ -677,7 +677,7 @@ export const ZKLoanProvider: React.FC<Readonly<ZKLoanProviderProps>> = ({ logger
       const ledgerState = ZKLoanCreditScorer.ledger(contractState.data);
 
       // Derive the user's public key from their wallet public key and PIN
-      const userPublicKey = ZKLoanCreditScorer.pureCircuits.deriveUserPublicKey({ bytes: privateState.userSecretKey }, pin).bytes;
+      const userPublicKey = ZKLoanCreditScorer.pureCircuits.deriveUserPublicKey(privateState.userSecretKey, pin);
       logger.info({ userPublicKeyHex: Buffer.from(userPublicKey).toString('hex').slice(0, 20) + '...' }, 'Derived user public key');
 
       // Check if the user has any loans

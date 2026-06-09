@@ -8,11 +8,11 @@ export enum LoanStatus { Approved = 0,
 
 export type LoanApplication = { authorizedAmount: bigint; status: LoanStatus };
 
-export type UserSecretKey = { bytes: Uint8Array };
+export type UserSecretKey = Uint8Array;
 
-export type UserPublicKey = { bytes: Uint8Array };
+export type UserPublicKey = Uint8Array;
 
-export type AdminPublicKey = { bytes: Uint8Array };
+export type AdminPublicKey = Uint8Array;
 
 export type Schnorr_SchnorrSignature = { announcement: __compactRuntime.JubjubPoint;
                                          response: bigint

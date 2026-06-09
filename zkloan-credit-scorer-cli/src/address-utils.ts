@@ -13,10 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {
-  MidnightBech32m,
-  ShieldedAddress,
-} from '@midnight-ntwrk/wallet-sdk-address-format';
+import { MidnightBech32m, ShieldedAddress } from '@midnight-ntwrk/wallet-sdk-address-format';
 import { getNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 
 /**
@@ -59,8 +56,8 @@ export function resolveZswapCoinPublicKey(input: string): Uint8Array {
     } catch (err) {
       throw new Error(
         `Could not decode shielded address for network '${String(networkId)}'. ` +
-        `Ensure the address prefix matches the active network. ` +
-        `Cause: ${err instanceof Error ? err.message : String(err)}`,
+          `Ensure the address prefix matches the active network. ` +
+          `Cause: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }
@@ -69,14 +66,11 @@ export function resolveZswapCoinPublicKey(input: string): Uint8Array {
   const hex = value.toLowerCase().replace(/^0x/, '');
   if (!/^[0-9a-f]+$/.test(hex)) {
     throw new Error(
-      'Unrecognised address format. Expected a shielded address (mn_shield-addr_…) ' +
-      'or a 32-byte hex string.',
+      'Unrecognised address format. Expected a shielded address (mn_shield-addr_…) ' + 'or a 32-byte hex string.',
     );
   }
   if (hex.length !== 64) {
-    throw new Error(
-      `Hex public key must be exactly 64 hex chars (32 bytes); got ${hex.length}.`,
-    );
+    throw new Error(`Hex public key must be exactly 64 hex chars (32 bytes); got ${hex.length}.`);
   }
   return Uint8Array.from(Buffer.from(hex, 'hex'));
 }

@@ -17,12 +17,26 @@ import { ZKLoanCreditScorer, type ZKLoanCreditScorerPrivateState } from 'zkloan-
 import type { MidnightProviders } from '@midnight-ntwrk/midnight-js-types';
 import type { DeployedContract, FoundContract } from '@midnight-ntwrk/midnight-js-contracts';
 
-export type ZKLoanCreditScorerCircuits = 'requestLoan' | 'changePin' | 'blacklistUser' | 'removeBlacklistUser' | 'rotateAdmin' | 'respondToLoan' | 'registerProvider' | 'removeProvider';
+export type ZKLoanCreditScorerCircuits =
+  | 'requestLoan'
+  | 'changePin'
+  | 'blacklistUser'
+  | 'removeBlacklistUser'
+  | 'rotateAdmin'
+  | 'respondToLoan'
+  | 'registerProvider'
+  | 'removeProvider';
 
 export const ZKLoanCreditScorerPrivateStateId = 'zkLoanCreditScorerPrivateState';
 
-export type ZKLoanCreditScorerProviders = MidnightProviders<ZKLoanCreditScorerCircuits, typeof ZKLoanCreditScorerPrivateStateId, ZKLoanCreditScorerPrivateState>;
+export type ZKLoanCreditScorerProviders = MidnightProviders<
+  ZKLoanCreditScorerCircuits,
+  typeof ZKLoanCreditScorerPrivateStateId,
+  ZKLoanCreditScorerPrivateState
+>;
 
 export type ZKLoanCreditScorerContract = ZKLoanCreditScorer.Contract<ZKLoanCreditScorerPrivateState>;
 
-export type DeployedZKLoanCreditScorerContract = DeployedContract<ZKLoanCreditScorerContract> | FoundContract<ZKLoanCreditScorerContract>;
+export type DeployedZKLoanCreditScorerContract =
+  | DeployedContract<ZKLoanCreditScorerContract>
+  | FoundContract<ZKLoanCreditScorerContract>;

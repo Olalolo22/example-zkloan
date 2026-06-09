@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Ledger } from "./managed/zkloan-credit-scorer/contract/index.js";
-import { WitnessContext } from "@midnight-ntwrk/compact-runtime";
+import { Ledger } from './managed/zkloan-credit-scorer/contract/index.js';
+import { WitnessContext } from '@midnight-ntwrk/compact-runtime';
 
 export type SchnorrSignature = {
   announcement: { x: bigint; y: bigint };
@@ -42,14 +42,10 @@ const TWO_248 = 4523128485832663883733241601901871400518358776001584532791311875
 
 export const witnesses = {
   getAttestedScoringWitness: ({
-    privateState
+    privateState,
   }: WitnessContext<Ledger, ZKLoanCreditScorerPrivateState>): [
     ZKLoanCreditScorerPrivateState,
-    [
-      { creditScore: bigint; monthlyIncome: bigint; monthsAsCustomer: bigint },
-      SchnorrSignature,
-      bigint,
-    ],
+    [{ creditScore: bigint; monthlyIncome: bigint; monthsAsCustomer: bigint }, SchnorrSignature, bigint],
   ] => [
     privateState,
     [
@@ -63,9 +59,8 @@ export const witnesses = {
     ],
   ],
 
-  getSchnorrReduction: ({
-    privateState
-  }: WitnessContext<Ledger, ZKLoanCreditScorerPrivateState>,
+  getSchnorrReduction: (
+    { privateState }: WitnessContext<Ledger, ZKLoanCreditScorerPrivateState>,
     challengeHash: bigint,
   ): [ZKLoanCreditScorerPrivateState, [bigint, bigint]] => {
     const q = challengeHash / TWO_248;
@@ -74,13 +69,13 @@ export const witnesses = {
   },
 
   getUserSecret: ({
-    privateState
+    privateState,
   }: WitnessContext<Ledger, ZKLoanCreditScorerPrivateState>): [
     ZKLoanCreditScorerPrivateState,
     { bytes: Uint8Array },
   ] => {
     if (!privateState.userSecretKey || privateState.userSecretKey.length !== 32) {
-      throw new Error("getUserSecret: userSecretKey is missing or wrong length");
+      throw new Error('getUserSecret: userSecretKey is missing or wrong length');
     }
     return [privateState, { bytes: privateState.userSecretKey }];
   },

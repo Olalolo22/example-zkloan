@@ -28,6 +28,12 @@ export default [
         ecmaVersion: "latest",
         sourceType: "module",
         project: ["./tsconfig.json"]
+      },
+      globals: {
+        process: "readonly",
+        Buffer: "readonly",
+        URL: "readonly",
+        setTimeout: "readonly"
       }
     },
     plugins: {

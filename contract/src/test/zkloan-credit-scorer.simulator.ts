@@ -21,16 +21,11 @@ import {
   type JubjubPoint,
   transientHash,
   CompactTypeBytes,
-} from "@midnight-ntwrk/compact-runtime";
-import {
-  Contract,
-  type Ledger,
-  ledger,
-  pureCircuits
-} from "../managed/zkloan-credit-scorer/contract/index.js";
-import { type ZKLoanCreditScorerPrivateState, witnesses } from "../witnesses.js";
-import { createEitherTestUser } from "./utils/address.js";
-import { createSignedUserProfile, generateUserSecret, generateProviderKeyPair } from "./utils/test-data.js";
+} from '@midnight-ntwrk/compact-runtime';
+import { Contract, type Ledger, ledger, pureCircuits } from '../managed/zkloan-credit-scorer/contract/index.js';
+import { type ZKLoanCreditScorerPrivateState, witnesses } from '../witnesses.js';
+import { createEitherTestUser } from './utils/address.js';
+import { createSignedUserProfile, generateUserSecret, generateProviderKeyPair } from './utils/test-data.js';
 
 const bytes32Type = new CompactTypeBytes(32);
 
@@ -43,7 +38,7 @@ export class ZKLoanCreditScorerSimulator {
   readonly userSecretKey: Uint8Array;
 
   constructor() {
-    const user = createEitherTestUser("Alice");
+    const user = createEitherTestUser('Alice');
     this.contract = new Contract<ZKLoanCreditScorerPrivateState>(witnesses);
 
     // Generate provider key pair
@@ -68,18 +63,14 @@ export class ZKLoanCreditScorerSimulator {
       this.userSecretKey,
     );
 
-    const {
-      currentPrivateState,
-      currentContractState,
-      currentZswapLocalState
-    } = this.contract.initialState(
-      createConstructorContext(initialPrivateState, user.left.hex)
+    const { currentPrivateState, currentContractState, currentZswapLocalState } = this.contract.initialState(
+      createConstructorContext(initialPrivateState, user.left.hex),
     );
     this.circuitContext = createCircuitContext(
       sampleContractAddress(),
       currentZswapLocalState,
       currentContractState,
-      currentPrivateState
+      currentPrivateState,
     );
 
     // Register the default provider
@@ -132,33 +123,27 @@ export class ZKLoanCreditScorerSimulator {
     this.circuitContext = this.contract.impureCircuits.requestLoan(
       this.circuitContext,
       amountRequested,
-      secretPin
+      secretPin,
     ).context;
     return ledger(this.circuitContext.currentQueryContext.state);
   }
 
   public blacklistUser(userPubKey: Uint8Array): Ledger {
-    this.circuitContext = this.contract.impureCircuits.blacklistUser(
-      this.circuitContext,
-      { bytes: userPubKey }
-    ).context;
+    this.circuitContext = this.contract.impureCircuits.blacklistUser(this.circuitContext, {
+      bytes: userPubKey,
+    }).context;
     return ledger(this.circuitContext.currentQueryContext.state);
   }
 
   public removeBlacklistUser(userPubKey: Uint8Array): Ledger {
-    this.circuitContext = this.contract.impureCircuits.removeBlacklistUser(
-      this.circuitContext,
-      { bytes: userPubKey }
-    ).context;
+    this.circuitContext = this.contract.impureCircuits.removeBlacklistUser(this.circuitContext, {
+      bytes: userPubKey,
+    }).context;
     return ledger(this.circuitContext.currentQueryContext.state);
   }
 
   public changePin(oldPin: bigint, newPin: bigint): Ledger {
-    this.circuitContext = this.contract.impureCircuits.changePin(
-      this.circuitContext,
-      oldPin,
-      newPin
-    ).context;
+    this.circuitContext = this.contract.impureCircuits.changePin(this.circuitContext, oldPin, newPin).context;
     return ledger(this.circuitContext.currentQueryContext.state);
   }
 
@@ -167,16 +152,15 @@ export class ZKLoanCreditScorerSimulator {
       this.circuitContext,
       loanId,
       secretPin,
-      accept
+      accept,
     ).context;
     return ledger(this.circuitContext.currentQueryContext.state);
   }
 
   public rotateAdmin(newAdminPublicKey: Uint8Array): Ledger {
-    this.circuitContext = this.contract.impureCircuits.rotateAdmin(
-      this.circuitContext,
-      { bytes: newAdminPublicKey }
-    ).context;
+    this.circuitContext = this.contract.impureCircuits.rotateAdmin(this.circuitContext, {
+      bytes: newAdminPublicKey,
+    }).context;
     return ledger(this.circuitContext.currentQueryContext.state);
   }
 
@@ -184,16 +168,13 @@ export class ZKLoanCreditScorerSimulator {
     this.circuitContext = this.contract.impureCircuits.registerProvider(
       this.circuitContext,
       providerId,
-      providerPk
+      providerPk,
     ).context;
     return ledger(this.circuitContext.currentQueryContext.state);
   }
 
   public removeProvider(providerId: bigint): Ledger {
-    this.circuitContext = this.contract.impureCircuits.removeProvider(
-      this.circuitContext,
-      providerId
-    ).context;
+    this.circuitContext = this.contract.impureCircuits.removeProvider(this.circuitContext, providerId).context;
     return ledger(this.circuitContext.currentQueryContext.state);
   }
 

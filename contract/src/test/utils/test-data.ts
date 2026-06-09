@@ -4,70 +4,70 @@
 
 import { type ZKLoanCreditScorerPrivateState } from '../../witnesses.js';
 import { pureCircuits, type Schnorr_SchnorrSignature } from '../../managed/zkloan-credit-scorer/contract/index.js';
-import { ecMulGenerator, addField, mulField, type JubjubPoint } from '@midnight-ntwrk/compact-runtime';
+import { ecMulGenerator, type JubjubPoint } from '@midnight-ntwrk/compact-runtime';
 import * as crypto from 'crypto';
 
 export const userProfiles = [
   {
-    "applicantId": "user-001",
-    "creditScore": 720,
-    "monthlyIncome": 2500,
-    "monthsAsCustomer": 24
+    applicantId: 'user-001',
+    creditScore: 720,
+    monthlyIncome: 2500,
+    monthsAsCustomer: 24,
   },
   {
-    "applicantId": "user-002",
-    "creditScore": 650,
-    "monthlyIncome": 1800,
-    "monthsAsCustomer": 11
+    applicantId: 'user-002',
+    creditScore: 650,
+    monthlyIncome: 1800,
+    monthsAsCustomer: 11,
   },
   {
-    "applicantId": "user-003",
-    "creditScore": 580,
-    "monthlyIncome": 2200,
-    "monthsAsCustomer": 36
+    applicantId: 'user-003',
+    creditScore: 580,
+    monthlyIncome: 2200,
+    monthsAsCustomer: 36,
   },
   {
-    "applicantId": "user-004",
-    "creditScore": 710,
-    "monthlyIncome": 1900,
-    "monthsAsCustomer": 5
+    applicantId: 'user-004',
+    creditScore: 710,
+    monthlyIncome: 1900,
+    monthsAsCustomer: 5,
   },
   {
-    "applicantId": "user-005",
-    "creditScore": 520,
-    "monthlyIncome": 3000,
-    "monthsAsCustomer": 48
+    applicantId: 'user-005',
+    creditScore: 520,
+    monthlyIncome: 3000,
+    monthsAsCustomer: 48,
   },
   {
-    "applicantId": "user-006",
-    "creditScore": 810,
-    "monthlyIncome": 4500,
-    "monthsAsCustomer": 60
+    applicantId: 'user-006',
+    creditScore: 810,
+    monthlyIncome: 4500,
+    monthsAsCustomer: 60,
   },
   {
-    "applicantId": "user-007",
-    "creditScore": 639,
-    "monthlyIncome": 2100,
-    "monthsAsCustomer": 18
+    applicantId: 'user-007',
+    creditScore: 639,
+    monthlyIncome: 2100,
+    monthsAsCustomer: 18,
   },
   {
-    "applicantId": "user-008",
-    "creditScore": 680,
-    "monthlyIncome": 1450,
-    "monthsAsCustomer": 30
+    applicantId: 'user-008',
+    creditScore: 680,
+    monthlyIncome: 1450,
+    monthsAsCustomer: 30,
   },
   {
-    "applicantId": "user-009",
-    "creditScore": 750,
-    "monthlyIncome": 2100,
-    "monthsAsCustomer": 23
+    applicantId: 'user-009',
+    creditScore: 750,
+    monthlyIncome: 2100,
+    monthsAsCustomer: 23,
   },
   {
-    "applicantId": "user-010",
-    "creditScore": 579,
-    "monthlyIncome": 1900,
-    "monthsAsCustomer": 12
-  }
+    applicantId: 'user-010',
+    creditScore: 579,
+    monthlyIncome: 1900,
+    monthsAsCustomer: 12,
+  },
 ];
 
 // Jubjub curve order for scalar field
@@ -87,10 +87,7 @@ export function generateProviderKeyPair(): { sk: bigint; pk: JubjubPoint } {
 
 const TWO_248 = 452312848583266388373324160190187140051835877600158453279131187530910662656n;
 
-export function schnorrSign(
-  sk: bigint,
-  msg: bigint[],
-): Schnorr_SchnorrSignature {
+export function schnorrSign(sk: bigint, msg: bigint[]): Schnorr_SchnorrSignature {
   const pk = ecMulGenerator(sk);
   const k = randomScalar();
   const R = ecMulGenerator(k);
@@ -101,7 +98,7 @@ export function schnorrSign(
   // Compute response: s = (k + c * sk) mod JUBJUB_ORDER
   // We must reduce mod JUBJUB_ORDER (not BLS12-381 Fr) because ecMulGenerator
   // requires scalars < JUBJUB_ORDER.
-  const s = ((k + c * sk) % JUBJUB_ORDER + JUBJUB_ORDER) % JUBJUB_ORDER;
+  const s = (((k + c * sk) % JUBJUB_ORDER) + JUBJUB_ORDER) % JUBJUB_ORDER;
   return { announcement: R, response: s };
 }
 

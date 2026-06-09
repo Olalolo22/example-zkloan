@@ -13,18 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { ZKLoanCreditScorerSimulator } from "./zkloan-credit-scorer.simulator.js";
-import { createSignedUserProfile, createCustomSignedProfile, generateProviderKeyPair, schnorrSign } from "./utils/test-data.js";
-import { setNetworkId } from "@midnight-ntwrk/midnight-js-network-id";
-import { describe, it, expect } from "vitest";
+import { ZKLoanCreditScorerSimulator } from './zkloan-credit-scorer.simulator.js';
+import { createCustomSignedProfile, generateProviderKeyPair } from './utils/test-data.js';
+import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
+import { describe, it, expect } from 'vitest';
 
-setNetworkId("undeployed");
+setNetworkId('undeployed');
 
-    const bigintReplacer = (_key: string, value: any) =>
-      typeof value === 'bigint' ? value.toString() : value;
-
-describe("ZKLoanCreditScorer smart contract", () => {
-
+describe('ZKLoanCreditScorer smart contract', () => {
   // Helper: set up private state with valid attestation for a given profile.
   // Binds the attestation message to the simulator's witness-derived user
   // pubkey at the given PIN. The simulator's `userSecretKey` is preserved so
@@ -48,7 +44,7 @@ describe("ZKLoanCreditScorer smart contract", () => {
     );
   }
 
-   it("generates initial ledger state deterministically", () => {
+  it('generates initial ledger state deterministically', () => {
     const simulator0 = new ZKLoanCreditScorerSimulator();
     const simulator1 = new ZKLoanCreditScorerSimulator();
 
@@ -60,9 +56,8 @@ describe("ZKLoanCreditScorer smart contract", () => {
     expect(ledger1.providers.member(1n)).toBeTruthy();
   });
 
-  it("approves a Tier 1 loan and caps at the max amount", () => {
+  it('approves a Tier 1 loan and caps at the max amount', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     const userPubKey = simulator.deriveUserPublicKey(simulator.userSecretKey, userPin);
@@ -76,9 +71,8 @@ describe("ZKLoanCreditScorer smart contract", () => {
     expect(loan.authorizedAmount).toEqual(1500n);
   });
 
-  it("approves a Tier 2 loan and gives the requested amount", () => {
+  it('approves a Tier 2 loan and gives the requested amount', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 650n, 1600n, 10n, userPin);
@@ -96,9 +90,8 @@ describe("ZKLoanCreditScorer smart contract", () => {
     expect(loan.authorizedAmount).toEqual(5000n); // Gets the requested amount
   });
 
-  it("proposes a Tier 3 loan when amount exceeds limit", () => {
+  it('proposes a Tier 3 loan when amount exceeds limit', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 590n, 1000n, 1n, userPin);
@@ -111,9 +104,8 @@ describe("ZKLoanCreditScorer smart contract", () => {
     expect(loan.authorizedAmount).toEqual(3000n); // Capped at Tier 3 max
   });
 
-  it("rejects a loan for a non-eligible applicant", () => {
+  it('rejects a loan for a non-eligible applicant', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 500n, 1000n, 1n, userPin);
@@ -126,9 +118,8 @@ describe("ZKLoanCreditScorer smart contract", () => {
     expect(loan.authorizedAmount).toEqual(0n);
   });
 
-  it("creates multiple loans for the same user with incrementing IDs", () => {
+  it('creates multiple loans for the same user with incrementing IDs', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 800n, 3000n, 30n, userPin);
@@ -146,7 +137,7 @@ describe("ZKLoanCreditScorer smart contract", () => {
     expect(userLoans.lookup(3n).authorizedAmount).toEqual(300n);
   });
 
-  it("throws an error if the user is blacklisted", () => {
+  it('throws an error if the user is blacklisted', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
     const userPin = 1234n;
 
@@ -158,12 +149,12 @@ describe("ZKLoanCreditScorer smart contract", () => {
 
     expect(() => {
       simulator.requestLoan(1000n, userPin);
-    }).toThrow("Requester is blacklisted");
+    }).toThrow('Requester is blacklisted');
   });
 
-  it("allows admin to blacklist and remove a user", () => {
+  it('allows admin to blacklist and remove a user', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const bobZwapKey = simulator.createTestUser("Bob").left.bytes;
+    const bobZwapKey = simulator.createTestUser('Bob').left.bytes;
     let ledger = simulator.getLedger();
 
     // Check Bob is not blacklisted
@@ -180,9 +171,8 @@ describe("ZKLoanCreditScorer smart contract", () => {
     expect(ledger.blacklist.member({ bytes: bobZwapKey })).toBeFalsy();
   });
 
-it("migrates a small number of loans (1 batch) and cleans up", () => {
+  it('migrates a small number of loans (1 batch) and cleans up', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const oldPin = 1234n;
     const newPin = 9876n;
 
@@ -214,9 +204,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(ledger.loans.lookup(newPubKey).lookup(2n).authorizedAmount).toEqual(200n);
   });
 
-  it("migrates multiple batches of loans (7 loans) correctly", () => {
+  it('migrates multiple batches of loans (7 loans) correctly', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const oldPin = 1234n;
     const newPin = 9876n;
 
@@ -246,7 +235,7 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
 
     expect(ledger.loans.lookup(oldPubKey).member(6n)).toBeTruthy(); // Check loan 6 still with old key
 
-// --- BATCH 2 (Migrates 6-7, finds 8-10 empty, finishes) ---
+    // --- BATCH 2 (Migrates 6-7, finds 8-10 empty, finishes) ---
     simulator.changePin(oldPin, newPin);
 
     ledger = simulator.getLedger();
@@ -262,9 +251,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(ledger.loans.member(oldPubKey)).toBeFalsy();
   });
 
-  it("throws an error if user tries to requestLoan during migration", () => {
+  it('throws an error if user tries to requestLoan during migration', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
 
     const oldPin = 1234n;
     const newPin = 9876n;
@@ -288,12 +276,11 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     // Try to request a new loan with the old PIN
     expect(() => {
       simulator.requestLoan(100n, oldPin);
-    }).toThrow("PIN migration is in progress for this user");
+    }).toThrow('PIN migration is in progress for this user');
   });
 
-  it("migrates loans to a new PIN that already has loans", () => {
+  it('migrates loans to a new PIN that already has loans', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const oldPin = 1234n;
     const newPin = 9876n;
 
@@ -310,7 +297,9 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     // Create 3 loans for the new PIN - need attestation for new pin
     const newPinPubKeyHash = simulator.computeUserPubKeyHash(simulator.userSecretKey, newPin);
     simulator.circuitContext.currentPrivateState = createCustomSignedProfile(
-      800n, 3000n, 30n,
+      800n,
+      3000n,
+      30n,
       simulator.providerSk,
       newPinPubKeyHash,
       simulator.providerId,
@@ -349,20 +338,20 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
   // Input Validation
   // ============================================================
 
-  it("throws when requesting loan with zero amount", () => {
+  it('throws when requesting loan with zero amount', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
     const userPin = 1234n;
 
     expect(() => {
       simulator.requestLoan(0n, userPin);
-    }).toThrow("Loan amount must be greater than zero");
+    }).toThrow('Loan amount must be greater than zero');
   });
 
   // ============================================================
   // changePin Validation
   // ============================================================
 
-  it("throws when blacklisted user tries to change PIN", () => {
+  it('throws when blacklisted user tries to change PIN', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
     const oldPin = 1234n;
     const newPin = 5678n;
@@ -378,10 +367,10 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     // Try to change PIN - should fail
     expect(() => {
       simulator.changePin(oldPin, newPin);
-    }).toThrow("User is blacklisted");
+    }).toThrow('User is blacklisted');
   });
 
-  it("throws when changing PIN to the same value", () => {
+  it('throws when changing PIN to the same value', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
     const userPin = 1234n;
 
@@ -391,14 +380,14 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     // Try to change PIN to the same value - should fail
     expect(() => {
       simulator.changePin(userPin, userPin);
-    }).toThrow("New PIN must be different from old PIN");
+    }).toThrow('New PIN must be different from old PIN');
   });
 
   // ============================================================
   // Admin Rotation
   // ============================================================
 
-  it("allows admin to rotate admin role to a new derived public key", () => {
+  it('allows admin to rotate admin role to a new derived public key', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
     const newAdminSecret = simulator.generateUserSecret();
     const newAdminPublicKey = simulator.deriveAdminPublicKey(newAdminSecret);
@@ -413,9 +402,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
   // Tier Boundary Edge Cases
   // ============================================================
 
-  it("approves exactly at Tier 1 boundary when amount within limit (score=700, income=2000, tenure=24)", () => {
+  it('approves exactly at Tier 1 boundary when amount within limit (score=700, income=2000, tenure=24)', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 700n, 2000n, 24n, userPin);
@@ -428,9 +416,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(loan.authorizedAmount).toEqual(10000n); // Tier 1 max
   });
 
-  it("proposes Tier 2 when just below Tier 1 threshold (score=699)", () => {
+  it('proposes Tier 2 when just below Tier 1 threshold (score=699)', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 699n, 2000n, 24n, userPin);
@@ -443,9 +430,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(loan.authorizedAmount).toEqual(7000n); // Falls to Tier 2 max
   });
 
-  it("proposes at Tier 2 boundary when amount exceeds limit (score=600, income=1500)", () => {
+  it('proposes at Tier 2 boundary when amount exceeds limit (score=600, income=1500)', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 600n, 1500n, 1n, userPin);
@@ -458,9 +444,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(loan.authorizedAmount).toEqual(7000n); // Tier 2 max
   });
 
-  it("proposes Tier 3 when just below Tier 2 threshold (score=599)", () => {
+  it('proposes Tier 3 when just below Tier 2 threshold (score=599)', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 599n, 1500n, 1n, userPin);
@@ -473,9 +458,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(loan.authorizedAmount).toEqual(3000n); // Falls to Tier 3 max
   });
 
-  it("proposes at Tier 3 boundary when amount exceeds limit (score=580)", () => {
+  it('proposes at Tier 3 boundary when amount exceeds limit (score=580)', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 580n, 500n, 1n, userPin);
@@ -488,9 +472,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(loan.authorizedAmount).toEqual(3000n); // Tier 3 max
   });
 
-  it("rejects when just below Tier 3 threshold (score=579)", () => {
+  it('rejects when just below Tier 3 threshold (score=579)', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 579n, 5000n, 100n, userPin);
@@ -503,9 +486,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(loan.authorizedAmount).toEqual(0n);
   });
 
-  it("proposes Tier 2 when Tier 1 income requirement not met", () => {
+  it('proposes Tier 2 when Tier 1 income requirement not met', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 750n, 1999n, 30n, userPin);
@@ -518,9 +500,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(loan.authorizedAmount).toEqual(7000n); // Falls to Tier 2
   });
 
-  it("proposes Tier 2 when Tier 1 tenure requirement not met", () => {
+  it('proposes Tier 2 when Tier 1 tenure requirement not met', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 750n, 2500n, 23n, userPin);
@@ -537,9 +518,9 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
   // Admin Authorization
   // ============================================================
 
-  it("throws when non-admin tries to blacklist a user", () => {
+  it('throws when non-admin tries to blacklist a user', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const charlieZwapKey = simulator.createTestUser("Charlie").left.bytes;
+    const charlieZwapKey = simulator.createTestUser('Charlie').left.bytes;
 
     // Rotate admin to a fresh secret the simulator does not hold. The
     // simulator's private state still carries the original admin secret,
@@ -549,12 +530,12 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
 
     expect(() => {
       simulator.blacklistUser(charlieZwapKey);
-    }).toThrow("Only admin can blacklist users");
+    }).toThrow('Only admin can blacklist users');
   });
 
-  it("throws when non-admin tries to remove from blacklist", () => {
+  it('throws when non-admin tries to remove from blacklist', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const charlieZwapKey = simulator.createTestUser("Charlie").left.bytes;
+    const charlieZwapKey = simulator.createTestUser('Charlie').left.bytes;
 
     // First blacklist Charlie while the simulator still holds the admin secret
     simulator.blacklistUser(charlieZwapKey);
@@ -565,10 +546,10 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
 
     expect(() => {
       simulator.removeBlacklistUser(charlieZwapKey);
-    }).toThrow("Only admin can remove from blacklist");
+    }).toThrow('Only admin can remove from blacklist');
   });
 
-  it("throws when non-admin tries to rotate admin", () => {
+  it('throws when non-admin tries to rotate admin', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
 
     // Rotate admin to a fresh secret the simulator does not hold
@@ -579,16 +560,15 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     const charlieAdminSecret = simulator.generateUserSecret();
     expect(() => {
       simulator.rotateAdmin(simulator.deriveAdminPublicKey(charlieAdminSecret));
-    }).toThrow("Only admin can rotate admin role");
+    }).toThrow('Only admin can rotate admin role');
   });
 
   // ============================================================
   // Public Key Determinism
   // ============================================================
 
-  it("generates same public key for same user and PIN (determinism)", () => {
+  it('generates same public key for same user and PIN (determinism)', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     const pubKey1 = simulator.deriveUserPublicKey(simulator.userSecretKey, userPin);
@@ -597,9 +577,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(pubKey1).toEqual(pubKey2);
   });
 
-  it("generates different public key for same user with different PIN", () => {
+  it('generates different public key for same user with different PIN', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const pin1 = 1234n;
     const pin2 = 5678n;
 
@@ -609,7 +588,7 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(pubKey1).not.toEqual(pubKey2);
   });
 
-  it("generates different public key for different users with same PIN", () => {
+  it('generates different public key for different users with same PIN', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
     const samePin = 1234n;
 
@@ -627,9 +606,9 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
   // Blacklist Edge Cases
   // ============================================================
 
-  it("blacklisting an already blacklisted user is idempotent", () => {
+  it('blacklisting an already blacklisted user is idempotent', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const bobZwapKey = simulator.createTestUser("Bob").left.bytes;
+    const bobZwapKey = simulator.createTestUser('Bob').left.bytes;
 
     // Blacklist Bob
     simulator.blacklistUser(bobZwapKey);
@@ -642,9 +621,9 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(ledger.blacklist.member({ bytes: bobZwapKey })).toBeTruthy();
   });
 
-  it("removing a non-blacklisted user from blacklist does not throw", () => {
+  it('removing a non-blacklisted user from blacklist does not throw', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const bobZwapKey = simulator.createTestUser("Bob").left.bytes;
+    const bobZwapKey = simulator.createTestUser('Bob').left.bytes;
 
     // Bob is not blacklisted
     let ledger = simulator.getLedger();
@@ -660,16 +639,20 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
   // Multi-User Isolation
   // ============================================================
 
-  it("same user with different PINs has separate loan records", () => {
+  it('same user with different PINs has separate loan records', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const aliceZwapKey = simulator.createTestUser("Alice").left.bytes;
     const pin1 = 1111n;
     const pin2 = 2222n;
 
     // Sign for pin1
     const pubKeyHash1 = simulator.computeUserPubKeyHash(simulator.userSecretKey, pin1);
     simulator.circuitContext.currentPrivateState = createCustomSignedProfile(
-      750n, 2500n, 30n, simulator.providerSk, pubKeyHash1, simulator.providerId,
+      750n,
+      2500n,
+      30n,
+      simulator.providerSk,
+      pubKeyHash1,
+      simulator.providerId,
       simulator.userSecretKey,
     );
 
@@ -682,7 +665,12 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     // Sign for pin2
     const pubKeyHash2 = simulator.computeUserPubKeyHash(simulator.userSecretKey, pin2);
     simulator.circuitContext.currentPrivateState = createCustomSignedProfile(
-      750n, 2500n, 30n, simulator.providerSk, pubKeyHash2, simulator.providerId,
+      750n,
+      2500n,
+      30n,
+      simulator.providerSk,
+      pubKeyHash2,
+      simulator.providerId,
       simulator.userSecretKey,
     );
 
@@ -698,10 +686,9 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(ledger.loans.lookup(pubKey2).lookup(1n).authorizedAmount).toEqual(3000n);
   });
 
-  it("blacklisting a different Zswap key does not affect the caller", () => {
+  it('blacklisting a different Zswap key does not affect the caller', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const aliceZwapKey = simulator.createTestUser("Alice").left.bytes;
-    const bobZwapKey = simulator.createTestUser("Bob").left.bytes;
+    const bobZwapKey = simulator.createTestUser('Bob').left.bytes;
     const alicePin = 1234n;
 
     const alicePubKey = simulator.deriveUserPublicKey(simulator.userSecretKey, alicePin);
@@ -721,9 +708,9 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
   // Admin Transfer Edge Cases
   // ============================================================
 
-  it("new admin can perform admin operations after rotation", () => {
+  it('new admin can perform admin operations after rotation', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const charlieZwapKey = simulator.createTestUser("Charlie").left.bytes;
+    const charlieZwapKey = simulator.createTestUser('Charlie').left.bytes;
 
     // Rotate to a new admin secret, then swap the simulator's local secret
     // to that of the new admin. The new admin now passes the auth check.
@@ -739,9 +726,9 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(ledger.blacklist.member({ bytes: charlieZwapKey })).toBeTruthy();
   });
 
-  it("old admin cannot perform admin operations after rotation", () => {
+  it('old admin cannot perform admin operations after rotation', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const charlieZwapKey = simulator.createTestUser("Charlie").left.bytes;
+    const charlieZwapKey = simulator.createTestUser('Charlie').left.bytes;
 
     // Rotate to a fresh secret the simulator does not hold
     const bobAdminSecret = simulator.generateUserSecret();
@@ -750,16 +737,14 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     // Original holder tries to blacklist Charlie - should fail
     expect(() => {
       simulator.blacklistUser(charlieZwapKey);
-    }).toThrow("Only admin can blacklist users");
+    }).toThrow('Only admin can blacklist users');
   });
 
-  it("can chain multiple admin rotations", () => {
+  it('can chain multiple admin rotations', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
 
     let ledger = simulator.getLedger();
-    expect(ledger.contractAdmin.bytes).toEqual(
-      simulator.deriveAdminPublicKey(simulator.userSecretKey),
-    );
+    expect(ledger.contractAdmin.bytes).toEqual(simulator.deriveAdminPublicKey(simulator.userSecretKey));
 
     // Rotate to Bob
     const bobAdminSecret = simulator.generateUserSecret();
@@ -773,9 +758,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
   // Proposed/NotAccepted Loan Flow
   // ============================================================
 
-  it("creates Proposed loan when requested amount exceeds tier limit", () => {
+  it('creates Proposed loan when requested amount exceeds tier limit', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 750n, 2500n, 30n, userPin);
@@ -790,9 +774,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(loan.authorizedAmount).toEqual(10000n); // Capped at Tier 1 max
   });
 
-  it("creates Approved loan when requested amount is within tier limit", () => {
+  it('creates Approved loan when requested amount is within tier limit', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 750n, 2500n, 30n, userPin);
@@ -807,9 +790,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(loan.authorizedAmount).toEqual(10000n);
   });
 
-  it("creates Approved loan when requested amount is less than tier limit", () => {
+  it('creates Approved loan when requested amount is less than tier limit', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 750n, 2500n, 30n, userPin);
@@ -824,9 +806,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(loan.authorizedAmount).toEqual(5000n);
   });
 
-  it("respondToLoan with accept=true changes Proposed to Approved", () => {
+  it('respondToLoan with accept=true changes Proposed to Approved', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 750n, 2500n, 30n, userPin);
@@ -846,9 +827,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(loan.authorizedAmount).toEqual(10000n); // Amount preserved
   });
 
-  it("respondToLoan with accept=false changes Proposed to NotAccepted with zero amount", () => {
+  it('respondToLoan with accept=false changes Proposed to NotAccepted with zero amount', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 750n, 2500n, 30n, userPin);
@@ -868,9 +848,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(loan.authorizedAmount).toEqual(0n); // Amount set to zero
   });
 
-  it("throws when respondToLoan is called on non-Proposed loan", () => {
+  it('throws when respondToLoan is called on non-Proposed loan', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 750n, 2500n, 30n, userPin);
@@ -885,17 +864,14 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     // Try to respond to an Approved loan - should fail
     expect(() => {
       simulator.respondToLoan(1n, userPin, true);
-    }).toThrow("Loan is not in Proposed status");
+    }).toThrow('Loan is not in Proposed status');
   });
 
-  it("throws when respondToLoan is called on already accepted loan", () => {
+  it('throws when respondToLoan is called on already accepted loan', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 750n, 2500n, 30n, userPin);
-
-    const userPubKey = simulator.deriveUserPublicKey(simulator.userSecretKey, userPin);
 
     // Create and accept a Proposed loan
     simulator.requestLoan(15000n, userPin);
@@ -904,12 +880,11 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     // Try to respond again - should fail
     expect(() => {
       simulator.respondToLoan(1n, userPin, false);
-    }).toThrow("Loan is not in Proposed status");
+    }).toThrow('Loan is not in Proposed status');
   });
 
-  it("throws when respondToLoan is called with non-existent loan ID", () => {
+  it('throws when respondToLoan is called with non-existent loan ID', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 750n, 2500n, 30n, userPin);
@@ -920,10 +895,10 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     // Try to respond to non-existent loan
     expect(() => {
       simulator.respondToLoan(999n, userPin, true);
-    }).toThrow("Loan not found");
+    }).toThrow('Loan not found');
   });
 
-  it("throws when respondToLoan is called by user with no loans", () => {
+  it('throws when respondToLoan is called by user with no loans', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
     const userPin = 1234n;
 
@@ -931,10 +906,10 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
 
     expect(() => {
       simulator.respondToLoan(1n, userPin, true);
-    }).toThrow("No loans found for this user");
+    }).toThrow('No loans found for this user');
   });
 
-  it("throws when blacklisted user tries to respondToLoan", () => {
+  it('throws when blacklisted user tries to respondToLoan', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
     const userPin = 1234n;
 
@@ -950,12 +925,11 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     // Try to respond - should fail
     expect(() => {
       simulator.respondToLoan(1n, userPin, true);
-    }).toThrow("User is blacklisted");
+    }).toThrow('User is blacklisted');
   });
 
-  it("creates Proposed loan for Tier 2 user exceeding limit", () => {
+  it('creates Proposed loan for Tier 2 user exceeding limit', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 650n, 1600n, 10n, userPin);
@@ -970,9 +944,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(loan.authorizedAmount).toEqual(7000n); // Capped at Tier 2 max
   });
 
-  it("creates Proposed loan for Tier 3 user exceeding limit", () => {
+  it('creates Proposed loan for Tier 3 user exceeding limit', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 590n, 1000n, 1n, userPin);
@@ -987,9 +960,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(loan.authorizedAmount).toEqual(3000n); // Capped at Tier 3 max
   });
 
-  it("rejected applicant still gets Rejected status (not Proposed)", () => {
+  it('rejected applicant still gets Rejected status (not Proposed)', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 500n, 1000n, 1n, userPin);
@@ -1002,9 +974,8 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(loan.authorizedAmount).toEqual(0n);
   });
 
-  it("can have multiple Proposed loans and respond to each independently", () => {
+  it('can have multiple Proposed loans and respond to each independently', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     setAttestedPrivateState(simulator, 750n, 2500n, 30n, userPin);
@@ -1014,7 +985,7 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     // Create multiple Proposed loans
     simulator.requestLoan(15000n, userPin); // Loan 1 - Proposed
     simulator.requestLoan(12000n, userPin); // Loan 2 - Proposed
-    simulator.requestLoan(5000n, userPin);  // Loan 3 - Approved (within limit)
+    simulator.requestLoan(5000n, userPin); // Loan 3 - Approved (within limit)
 
     let ledger = simulator.getLedger();
     expect(ledger.loans.lookup(userPubKey).lookup(1n).status).toEqual(2); // Proposed
@@ -1038,15 +1009,19 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
   // NEW TESTS: Attestation & Provider Management
   // ============================================================
 
-  it("rejects loan with invalid attestation signature", () => {
+  it('rejects loan with invalid attestation signature', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     // Create a state with a tampered signature (wrong response)
     const pubKeyHash = simulator.computeUserPubKeyHash(simulator.userSecretKey, userPin);
     const validState = createCustomSignedProfile(
-      750n, 2500n, 30n, simulator.providerSk, pubKeyHash, simulator.providerId,
+      750n,
+      2500n,
+      30n,
+      simulator.providerSk,
+      pubKeyHash,
+      simulator.providerId,
       simulator.userSecretKey,
     );
     simulator.circuitContext.currentPrivateState = {
@@ -1059,30 +1034,33 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
 
     expect(() => {
       simulator.requestLoan(5000n, userPin);
-    }).toThrow("Invalid attestation signature");
+    }).toThrow('Invalid attestation signature');
   });
 
-  it("rejects loan with unregistered provider", () => {
+  it('rejects loan with unregistered provider', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     // Generate a different provider key pair (not registered)
     const otherProvider = generateProviderKeyPair();
     const pubKeyHash = simulator.computeUserPubKeyHash(simulator.userSecretKey, userPin);
     simulator.circuitContext.currentPrivateState = createCustomSignedProfile(
-      750n, 2500n, 30n, otherProvider.sk, pubKeyHash, 99n, // unregistered provider ID
+      750n,
+      2500n,
+      30n,
+      otherProvider.sk,
+      pubKeyHash,
+      99n, // unregistered provider ID
       simulator.userSecretKey,
     );
 
     expect(() => {
       simulator.requestLoan(5000n, userPin);
-    }).toThrow("Attestation provider not registered");
+    }).toThrow('Attestation provider not registered');
   });
 
-  it("rejects loan after provider is removed", () => {
+  it('rejects loan after provider is removed', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     // First verify the provider is registered and a loan works
@@ -1094,10 +1072,10 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     // Try to request another loan - should fail
     expect(() => {
       simulator.requestLoan(200n, userPin);
-    }).toThrow("Attestation provider not registered");
+    }).toThrow('Attestation provider not registered');
   });
 
-  it("user binding prevents replay (signature for user A cannot be used by user B)", () => {
+  it('user binding prevents replay (signature for user A cannot be used by user B)', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
     const userPin = 1234n;
 
@@ -1109,16 +1087,21 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     const otherUserSecret = simulator.generateUserSecret();
     const otherPubKeyHash = simulator.computeUserPubKeyHash(otherUserSecret, userPin);
     simulator.circuitContext.currentPrivateState = createCustomSignedProfile(
-      750n, 2500n, 30n, simulator.providerSk, otherPubKeyHash, simulator.providerId,
+      750n,
+      2500n,
+      30n,
+      simulator.providerSk,
+      otherPubKeyHash,
+      simulator.providerId,
       simulator.userSecretKey,
     );
 
     expect(() => {
       simulator.requestLoan(5000n, userPin);
-    }).toThrow("Invalid attestation signature");
+    }).toThrow('Invalid attestation signature');
   });
 
-  it("throws when non-admin tries to register provider", () => {
+  it('throws when non-admin tries to register provider', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
 
     // Rotate admin to a fresh secret the simulator does not hold
@@ -1129,10 +1112,10 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
 
     expect(() => {
       simulator.registerProvider(2n, newProvider.pk);
-    }).toThrow("Only admin can register providers");
+    }).toThrow('Only admin can register providers');
   });
 
-  it("throws when non-admin tries to remove provider", () => {
+  it('throws when non-admin tries to remove provider', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
 
     // Rotate admin to a fresh secret the simulator does not hold
@@ -1141,20 +1124,19 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
 
     expect(() => {
       simulator.removeProvider(simulator.providerId);
-    }).toThrow("Only admin can remove providers");
+    }).toThrow('Only admin can remove providers');
   });
 
-  it("throws when removing a non-existent provider", () => {
+  it('throws when removing a non-existent provider', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
 
     expect(() => {
       simulator.removeProvider(999n);
-    }).toThrow("Provider not found");
+    }).toThrow('Provider not found');
   });
 
-  it("multiple providers can both be used for attestation", () => {
+  it('multiple providers can both be used for attestation', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     // Register a second provider
@@ -1170,7 +1152,12 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
 
     // Use provider 2 for second loan
     simulator.circuitContext.currentPrivateState = createCustomSignedProfile(
-      750n, 2500n, 30n, provider2.sk, pubKeyHash, provider2Id,
+      750n,
+      2500n,
+      30n,
+      provider2.sk,
+      pubKeyHash,
+      provider2Id,
       simulator.userSecretKey,
     );
     simulator.requestLoan(3000n, userPin);
@@ -1181,7 +1168,7 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(userLoans.lookup(2n).authorizedAmount).toEqual(3000n);
   });
 
-  it("provider registry shows up in ledger state", () => {
+  it('provider registry shows up in ledger state', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
 
     // Default provider should be registered
@@ -1192,15 +1179,19 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
     expect(providerPk.y).toEqual(simulator.providerPk.y);
   });
 
-  it("attestation with tampered credit data fails signature verification", () => {
+  it('attestation with tampered credit data fails signature verification', () => {
     const simulator = new ZKLoanCreditScorerSimulator();
-    const userZwapKey = simulator.createTestUser("Alice").left.bytes;
     const userPin = 1234n;
 
     // Create valid attestation
     const pubKeyHash = simulator.computeUserPubKeyHash(simulator.userSecretKey, userPin);
     const validState = createCustomSignedProfile(
-      650n, 1600n, 10n, simulator.providerSk, pubKeyHash, simulator.providerId,
+      650n,
+      1600n,
+      10n,
+      simulator.providerSk,
+      pubKeyHash,
+      simulator.providerId,
       simulator.userSecretKey,
     );
 
@@ -1212,6 +1203,6 @@ it("migrates a small number of loans (1 batch) and cleans up", () => {
 
     expect(() => {
       simulator.requestLoan(5000n, userPin);
-    }).toThrow("Invalid attestation signature");
+    }).toThrow('Invalid attestation signature');
   });
 });

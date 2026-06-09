@@ -1,6 +1,5 @@
 import { encodeCoinPublicKey } from '@midnight-ntwrk/compact-runtime';
 import { encodeContractAddress } from '@midnight-ntwrk/ledger-v8';
-import type * as Compact from '../../managed/zkloan-credit-scorer/contract/index.js';
 
 /**
  * @description Converts an ASCII string to its hexadecimal representation,
@@ -10,14 +9,14 @@ import type * as Compact from '../../managed/zkloan-credit-scorer/contract/index
  * @param len Total desired length of the resulting hex string. Defaults to 64.
  * @returns Hexadecimal string representation of `str`, padded to `length` characters.
  */
-export const toHexPadded = (str: string, len = 64) =>
-  Buffer.from(str, 'ascii').toString('hex').padStart(len, '0');
+export const toHexPadded = (str: string, len = 64) => Buffer.from(str, 'ascii').toString('hex').padStart(len, '0');
 /**
  * @description Generates ZswapCoinPublicKey from `str` for testing purposes.
  * @param str String to hexify and encode.
  * @returns Encoded `ZswapCoinPublicKey`.
  */
-export const encodeToPK = (str: string): any  => ({ // TODO: look for ZswapCoinPublicKey type
+export const encodeToPK = (str: string): any => ({
+  // TODO: look for ZswapCoinPublicKey type
   bytes: encodeCoinPublicKey(toHexPadded(str)),
   hex: toHexPadded(str),
 });
@@ -27,9 +26,9 @@ export const encodeToPK = (str: string): any  => ({ // TODO: look for ZswapCoinP
  * @param str String to hexify and encode.
  * @returns Encoded ContractAddress.
  */
-export const encodeToAddress = (str: string): any  => ({
+export const encodeToAddress = (str: string): any => ({
   bytes: encodeContractAddress(toHexPadded(str)),
-}); 
+});
 
 /**
  * @description Generates an Either object for ZswapCoinPublicKey for testing.
@@ -42,4 +41,3 @@ export const createEitherTestUser = (str: string) => ({
   left: encodeToPK(str),
   right: encodeToAddress(''),
 });
-

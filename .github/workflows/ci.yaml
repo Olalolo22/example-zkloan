@@ -33,9 +33,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Node.js
+        # Pinned to 22 (the project's minimum supported engine): restify, used
+        # by the attestation API, pulls spdy -> http-deceiver, which calls the
+        # process.binding('http_parser') internal removed in Node 23+. Node 24
+        # therefore breaks `require('restify')` at import. Revisit if/when the
+        # attestation API migrates off restify.
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
         with:
-          node-version: '24'
+          node-version: '22'
 
       # npm < 11 mishandles platform-specific optional dependencies, breaking the
       # build. setup-node still ships an older npm. See https://github.com/npm/cli/issues/4828

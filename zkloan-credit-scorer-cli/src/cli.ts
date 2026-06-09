@@ -53,12 +53,18 @@ You can do one of the following:
   10. Exit
 Which would you like to do? `;
 
-const join = async (providers: ZKLoanCreditScorerProviders, rli: Interface): Promise<DeployedZKLoanCreditScorerContract> => {
+const join = async (
+  providers: ZKLoanCreditScorerProviders,
+  rli: Interface,
+): Promise<DeployedZKLoanCreditScorerContract> => {
   const contractAddress = await rli.question('What is the contract address (in hex)? ');
   return await api.joinContract(providers, contractAddress);
 };
 
-const deployOrJoin = async (providers: ZKLoanCreditScorerProviders, rli: Interface): Promise<DeployedZKLoanCreditScorerContract | null> => {
+const deployOrJoin = async (
+  providers: ZKLoanCreditScorerProviders,
+  rli: Interface,
+): Promise<DeployedZKLoanCreditScorerContract | null> => {
   while (true) {
     const choice = await rli.question(DEPLOY_OR_JOIN_QUESTION);
     switch (choice) {
@@ -111,7 +117,7 @@ const changePinFlow = async (contract: DeployedZKLoanCreditScorerContract, rli: 
 };
 
 const USER_PUBKEY_PROMPT_HINT =
-  '(64-char hex of the user\'s derived UserPublicKey — e.g. read from the on-chain `loans` map key, or shared by the target)';
+  "(64-char hex of the user's derived UserPublicKey — e.g. read from the on-chain `loans` map key, or shared by the target)";
 
 const parseUserPublicKeyHex = (input: string): Uint8Array => {
   const hex = input.trim().toLowerCase().replace(/^0x/, '');
@@ -140,7 +146,7 @@ const removeBlacklistUserFlow = async (contract: DeployedZKLoanCreditScorerContr
 const rotateAdminFlow = async (contract: DeployedZKLoanCreditScorerContract, rli: Interface): Promise<void> => {
   const input = await rli.question(
     'Enter the new admin derived public key (64 hex chars). ' +
-    'The new admin generates this with `deriveAdminPublicKey(userSecret)` and shares only the result: ',
+      'The new admin generates this with `deriveAdminPublicKey(userSecret)` and shares only the result: ',
   );
   const hex = input.trim().toLowerCase().replace(/^0x/, '');
   if (!/^[0-9a-f]{64}$/.test(hex)) {
@@ -170,7 +176,11 @@ const removeProviderFlow = async (contract: DeployedZKLoanCreditScorerContract, 
   logger.info('Attestation provider removed successfully!');
 };
 
-const mainLoop = async (providers: ZKLoanCreditScorerProviders, walletContext: WalletContext, rli: Interface): Promise<void> => {
+const mainLoop = async (
+  providers: ZKLoanCreditScorerProviders,
+  walletContext: WalletContext,
+  rli: Interface,
+): Promise<void> => {
   const contract = await deployOrJoin(providers, rli);
   if (contract === null) {
     return;

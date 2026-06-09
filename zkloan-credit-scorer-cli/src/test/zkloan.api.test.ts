@@ -65,13 +65,7 @@ describe('ZKLoan Credit Scorer API', () => {
 
     const attestationApiUrl = process.env.ATTESTATION_API_URL ?? 'http://localhost:4000';
 
-    const response = await api.requestLoan(
-      contract,
-      providers,
-      amountRequested,
-      secretPin,
-      attestationApiUrl,
-    );
+    const response = await api.requestLoan(contract, providers, amountRequested, secretPin, attestationApiUrl);
     expect(response.txId).toMatch(/[0-9a-f]{64}/);
     expect(response.blockHeight).toBeGreaterThan(BigInt(0));
 

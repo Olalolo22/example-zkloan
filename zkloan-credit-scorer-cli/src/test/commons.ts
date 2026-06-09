@@ -196,15 +196,9 @@ export class TestEnvironment {
 
     // Use hex seed for standalone (genesis wallet), mnemonic for preprod
     if (this.testConfig.dappConfig instanceof StandaloneConfig) {
-      this.walletContext = await api.buildWalletFromHexSeed(
-        this.testConfig.dappConfig,
-        this.testConfig.seed,
-      );
+      this.walletContext = await api.buildWalletFromHexSeed(this.testConfig.dappConfig, this.testConfig.seed);
     } else {
-      this.walletContext = await api.buildWalletAndWaitForFunds(
-        this.testConfig.dappConfig,
-        this.testConfig.mnemonic,
-      );
+      this.walletContext = await api.buildWalletAndWaitForFunds(this.testConfig.dappConfig, this.testConfig.mnemonic);
     }
 
     expect(this.walletContext).not.toBeNull();

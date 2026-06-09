@@ -89,11 +89,8 @@ export const getZKLoanLedgerState = async (
 // Create compiled contract using the stable API pattern
 export const zkLoanCompiledContract = CompiledContract.make<ZKLoanCreditScorerContract>(
   'ZKLoanCreditScorer',
-  ZKLoanCreditScorer.Contract
-).pipe(
-  CompiledContract.withWitnesses(witnesses),
-  CompiledContract.withCompiledFileAssets(contractConfig.zkConfigPath),
-);
+  ZKLoanCreditScorer.Contract,
+).pipe(CompiledContract.withWitnesses(witnesses), CompiledContract.withCompiledFileAssets(contractConfig.zkConfigPath));
 
 export const joinContract = async (
   providers: ZKLoanCreditScorerProviders,
@@ -168,7 +165,7 @@ export const fetchAttestation = async (
   if (!res.ok) {
     throw new Error(`Attestation API error: ${res.status} ${await res.text()}`);
   }
-  const data = await res.json() as { signature: { announcement: { x: string; y: string }; response: string } };
+  const data = (await res.json()) as { signature: { announcement: { x: string; y: string }; response: string } };
   return {
     announcement: { x: BigInt(data.signature.announcement.x), y: BigInt(data.signature.announcement.y) },
     response: BigInt(data.signature.response),
@@ -204,7 +201,7 @@ export const requestLoan = async (
 
   // 4. Get provider info
   const providerRes = await fetch(`${attestationApiUrl}/provider-info`);
-  const providerInfo = await providerRes.json() as { providerId: number };
+  const providerInfo = (await providerRes.json()) as { providerId: number };
 
   // 5. Update private state with attestation data
   const updatedState: ZKLoanCreditScorerPrivateState = {
@@ -327,9 +324,7 @@ export const createWalletAndMidnightProvider = async (
   walletContext: WalletContext,
 ): Promise<WalletProvider & MidnightProvider> => {
   // Wait for wallet to sync first
-  await Rx.firstValueFrom(
-    walletContext.wallet.state().pipe(Rx.filter((s) => s.isSynced)),
-  );
+  await Rx.firstValueFrom(walletContext.wallet.state().pipe(Rx.filter((s) => s.isSynced)));
 
   return {
     getCoinPublicKey(): ledger.CoinPublicKey {
@@ -340,10 +335,7 @@ export const createWalletAndMidnightProvider = async (
       return walletContext.shieldedSecretKeys.encryptionPublicKey;
     },
 
-    async balanceTx(
-      tx: UnboundTransaction,
-      ttl?: Date,
-    ): Promise<ledger.FinalizedTransaction> {
+    async balanceTx(tx: UnboundTransaction, ttl?: Date): Promise<ledger.FinalizedTransaction> {
       const txTtl = ttl ?? new Date(Date.now() + 30 * 60 * 1000); // 30 min default TTL
 
       // Use the wallet facade to balance the unbound (proven) transaction
@@ -385,10 +377,16 @@ export const waitForFunds = (wallet: WalletFacade) =>
       Rx.tap((state) => {
         const unshielded = state.unshielded?.balances[ledger.nativeToken().raw] ?? 0n;
         const shielded = state.shielded?.balances[ledger.nativeToken().raw] ?? 0n;
-        logger.info(`Waiting for NIGHT funds. Synced: ${state.isSynced}, Unshielded: ${unshielded}, Shielded: ${shielded}`);
+        logger.info(
+          `Waiting for NIGHT funds. Synced: ${state.isSynced}, Unshielded: ${unshielded}, Shielded: ${shielded}`,
+        );
       }),
       Rx.filter((state) => state.isSynced),
-      Rx.map((s) => (s.unshielded?.balances[ledger.nativeToken().raw] ?? 0n) + (s.shielded?.balances[ledger.nativeToken().raw] ?? 0n)),
+      Rx.map(
+        (s) =>
+          (s.unshielded?.balances[ledger.nativeToken().raw] ?? 0n) +
+          (s.shielded?.balances[ledger.nativeToken().raw] ?? 0n),
+      ),
       Rx.filter((balance) => balance > 0n),
     ),
   );
@@ -401,7 +399,9 @@ export const waitForFunds = (wallet: WalletFacade) =>
  * tNIGHT / tDUST variants. We query the native token for NIGHT and the
  * dust wallet for DUST and surface both so it's obvious which is which.
  */
-export const displayWalletBalances = async (wallet: WalletFacade): Promise<{ unshielded: bigint; shielded: bigint; total: bigint; dust: bigint }> => {
+export const displayWalletBalances = async (
+  wallet: WalletFacade,
+): Promise<{ unshielded: bigint; shielded: bigint; total: bigint; dust: bigint }> => {
   const state = await Rx.firstValueFrom(wallet.state());
   const unshielded = state.unshielded?.balances[ledger.nativeToken().raw] ?? 0n;
   const shielded = state.shielded?.balances[ledger.nativeToken().raw] ?? 0n;
@@ -424,9 +424,8 @@ export const registerNightForDust = async (walletContext: WalletContext): Promis
   const state = await Rx.firstValueFrom(walletContext.wallet.state().pipe(Rx.filter((s) => s.isSynced)));
 
   // Check if we have unshielded coins that are not registered for dust generation
-  const unregisteredNightUtxos = state.unshielded?.availableCoins.filter(
-    (coin) => coin.meta.registeredForDustGeneration === false
-  ) ?? [];
+  const unregisteredNightUtxos =
+    state.unshielded?.availableCoins.filter((coin) => coin.meta.registeredForDustGeneration === false) ?? [];
 
   if (unregisteredNightUtxos.length === 0) {
     logger.info('No unshielded Night UTXOs available for dust registration, or all are already registered');
@@ -493,10 +492,7 @@ export const mnemonicToSeed = async (mnemonic: string): Promise<Buffer> => {
 /**
  * Initialize wallet with seed using the new wallet SDK
  */
-export const initWalletWithSeed = async (
-  seed: Buffer,
-  config: Config,
-): Promise<WalletContext> => {
+export const initWalletWithSeed = async (seed: Buffer, config: Config): Promise<WalletContext> => {
   const hdWallet = HDWallet.fromSeed(seed);
 
   if (hdWallet.type !== 'seedOk') {
@@ -565,13 +561,10 @@ export const initWalletWithSeed = async (
   const facade = await WalletFacade.init({
     configuration: unifiedConfig,
     shielded: () => ShieldedWallet(shieldedConfig).startWithSecretKeys(shieldedSecretKeys),
-    unshielded: () => UnshieldedWallet(unshieldedConfig).startWithPublicKey(
-      UnshieldedPublicKey.fromKeyStore(unshieldedKeystore),
-    ),
-    dust: () => DustWallet(dustConfig).startWithSecretKey(
-      dustSecretKey,
-      ledger.LedgerParameters.initialParameters().dust,
-    ),
+    unshielded: () =>
+      UnshieldedWallet(unshieldedConfig).startWithPublicKey(UnshieldedPublicKey.fromKeyStore(unshieldedKeystore)),
+    dust: () =>
+      DustWallet(dustConfig).startWithSecretKey(dustSecretKey, ledger.LedgerParameters.initialParameters().dust),
   });
   await facade.start(shieldedSecretKeys, dustSecretKey);
 
@@ -581,10 +574,7 @@ export const initWalletWithSeed = async (
 /**
  * Build wallet from mnemonic and wait for funds
  */
-export const buildWalletAndWaitForFunds = async (
-  config: Config,
-  mnemonic: string,
-): Promise<WalletContext> => {
+export const buildWalletAndWaitForFunds = async (config: Config, mnemonic: string): Promise<WalletContext> => {
   logger.info('Building wallet from mnemonic...');
 
   const seed = await mnemonicToSeed(mnemonic);
@@ -629,10 +619,7 @@ export const buildFreshWallet = async (config: Config): Promise<WalletContext> =
 /**
  * Build wallet from hex seed (for backwards compatibility with genesis wallet)
  */
-export const buildWalletFromHexSeed = async (
-  config: Config,
-  hexSeed: string,
-): Promise<WalletContext> => {
+export const buildWalletFromHexSeed = async (config: Config, hexSeed: string): Promise<WalletContext> => {
   logger.info('Building wallet from hex seed...');
   const seed = Buffer.from(hexSeed, 'hex');
   const walletContext = await initWalletWithSeed(seed, config);
@@ -658,7 +645,10 @@ export const buildWalletFromHexSeed = async (
   return walletContext;
 };
 
-export const configureProviders = async (walletContext: WalletContext, config: Config): Promise<ZKLoanCreditScorerProviders> => {
+export const configureProviders = async (
+  walletContext: WalletContext,
+  config: Config,
+): Promise<ZKLoanCreditScorerProviders> => {
   // Set global network ID - required before contract deployment
   setNetworkId(config.networkId);
 
@@ -668,7 +658,7 @@ export const configureProviders = async (walletContext: WalletContext, config: C
   if (!storagePassword) {
     throw new Error(
       'MIDNIGHT_STORAGE_PASSWORD is not set. Set it in zkloan-credit-scorer-cli/.env (see .env.example). ' +
-      'The level-private-state-provider requires it to encrypt private state on disk.'
+        'The level-private-state-provider requires it to encrypt private state on disk.',
     );
   }
 

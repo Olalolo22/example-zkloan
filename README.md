@@ -11,7 +11,7 @@
 - Node.js v22+
 - npm v10+
 - Docker + Docker Compose (for the local standalone network)
-- Compact toolchain 0.31.0 — install with the [`compact` devtool](https://docs.midnight.network/develop/tutorial/building/prereqs#compact-developer-tools), then run `compact update`. Verify with `compact compile --version` (should print `0.31.0`)
+- Compact toolchain 0.31.1 — install with the [`compact` devtool](https://docs.midnight.network/develop/tutorial/building/prereqs#compact-developer-tools), then run `compact update`. Verify with `compact compile --version` (should print `0.31.1`)
 - For the remote testnet flow only: the [Midnight Lace wallet](https://chromewebstore.google.com/detail/lace/gafhhkghbfjjkeiendhlofajokpaflmk) browser extension
 
 ### Dependency versions
@@ -27,13 +27,13 @@ The project targets ledger v8.1 and the **4.1.x Midnight JS SDK**. See [Midnight
 | `@midnight-ntwrk/compact-runtime` (direct dep — imported by generated contract code) | 0.16.0 |
 | `@midnight-ntwrk/midnight-js-*` | 4.1.1 |
 | `@midnight-ntwrk/dapp-connector-api` | 4.0.1 |
-| `@midnight-ntwrk/wallet-sdk` (barrel — replaces `wallet-sdk-facade`/`-hd`/`-shielded`/`-dust-wallet`/`-unshielded-wallet`) | 1.1.0 |
+| `@midnight-ntwrk/wallet-sdk` (barrel — replaces `wallet-sdk-facade`/`-hd`/`-shielded`/`-dust-wallet`/`-unshielded-wallet`) | 1.2.0 |
 | `@midnight-ntwrk/wallet-sdk-address-format` | 3.1.2 |
-| Compact toolchain (`compact compile`) | 0.31.0 |
+| Compact toolchain (`compact compile`) | 0.31.1 |
 | Compact language pragma | >= 0.22 && <= 0.23 |
-| Proof server image | `midnightntwrk/proof-server:8.0.3` |
-| Indexer image | `midnightntwrk/indexer-standalone:4.0.1` |
-| Node image | `midnightntwrk/midnight-node:0.22.3` |
+| Proof server image | `midnightntwrk/proof-server:8.1.0` |
+| Indexer image | `midnightntwrk/indexer-standalone:4.3.3` |
+| Node image | `midnightntwrk/midnight-node:1.0.0` |
 
 You'll end up with up to four terminals running at once: docker network, attestation API, CLI, UI. Follow the steps in order and each one produces what the next one needs.
 
@@ -142,7 +142,7 @@ The CLI uses a pre-funded hex seed against the local `undeployed` network, so no
 
 #### Option B — Preprod (remote)
 
-Requires a BIP39 mnemonic for a Preprod wallet funded with tDUST from the Preprod faucet. You **also need a local proof server running on port 6300** (already running if you did step 4; otherwise spin one up with `docker run --rm -p 6300:6300 midnightntwrk/proof-server:8.0.3 midnight-proof-server -v`).
+Requires a BIP39 mnemonic for a Preprod wallet funded with tDUST from the [Preprod faucet](https://midnight-tmnight-preprod.nethermind.dev/). You **also need a local proof server running on port 6300** (already running if you did step 4; otherwise spin one up with `docker run --rm -p 6300:6300 midnightntwrk/proof-server:8.1.0 midnight-proof-server -v`).
 
 Add the mnemonic to your CLI `.env`:
 
@@ -191,7 +191,7 @@ Available at `http://localhost:5173` (dev) or `http://localhost:4173` (preview).
 **To connect:**
 
 1. Install the [Midnight Lace wallet](https://chromewebstore.google.com/detail/lace/gafhhkghbfjjkeiendhlofajokpaflmk) extension and set it to the **Preprod** network.
-2. Fund the wallet with tDUST from the Preprod faucet.
+2. Fund the wallet with tDUST from the [Preprod faucet](https://midnight-tmnight-preprod.nethermind.dev/).
 3. Make sure steps 5 and 6 (Preprod option) have already run — the attestation API is up, a Preprod contract is deployed, and the provider is registered on it.
 4. Open the UI, click **Connect Lace wallet**, then paste the contract address into **01 · Contract** and click Connect.
 5. Wait for Lace to finish syncing (the extension shows a `Wallet syncing (…%)` banner until it's done) before submitting a loan — mid-sync submissions fail with a generic "Transaction submission failed" error.

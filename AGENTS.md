@@ -236,7 +236,7 @@ As of Midnight JS **4.1.x**, the protocol packages (`ledger`, `compact-runtime`,
     "@midnight-ntwrk/midnight-js-protocol": "4.1.1",
     "@midnight-ntwrk/midnight-js-contracts": "4.1.1",
     "@midnight-ntwrk/compact-runtime": "^0.16.0",
-    "@midnight-ntwrk/wallet-sdk": "1.1.0"
+    "@midnight-ntwrk/wallet-sdk": "1.2.0"
 }
 ```
 
@@ -599,7 +599,7 @@ This is the **witness-derived keypair pattern**. Cite it by that name when docum
 
 ---
 
-*Last updated: Compact language version >= 0.22 && <= 0.23, compiler version 0.31.0. Section 13 (Admin Authorization) reflects the witness-derived keypair pattern that replaces an earlier `ownPublicKey()`-based pattern. The earlier pattern was insecure and has been removed throughout the repository.*
+*Last updated: Compact language version >= 0.22 && <= 0.23, compiler version 0.31.1. Section 13 (Admin Authorization) reflects the witness-derived keypair pattern that replaces an earlier `ownPublicKey()`-based pattern. The earlier pattern was insecure and has been removed throughout the repository.*
 
 **References:**
 - [Explicit Disclosure](https://docs.midnight.network/develop/reference/compact/explicit_disclosure) - Official Midnight documentation

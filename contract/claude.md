@@ -1,6 +1,6 @@
 # ZKLoan Credit Scorer — Contract Reference
 
-Reference for the Compact contract. Reflects `pragma language_version >= 0.22 && <= 0.23` and the Midnight toolchain 0.31.0 / ledger v8 build. **Caller identity is witness-derived throughout — `ownPublicKey()` is not called by this contract.** The admin role and per-user identity both derive from a single 32-byte `userSecretKey` in private state via domain-separated hashes.
+Reference for the Compact contract. Reflects `pragma language_version >= 0.22 && <= 0.23` and the Midnight toolchain 0.31.1 / ledger v8 build. **Caller identity is witness-derived throughout — `ownPublicKey()` is not called by this contract.** The admin role and per-user identity both derive from a single 32-byte `userSecretKey` in private state via domain-separated hashes.
 
 ## Project Overview
 

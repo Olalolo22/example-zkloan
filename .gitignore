@@ -71,3 +71,6 @@ updated_starter_0.1/
 
 # Local plugin configs (e.g. Midnight Expert marketplace)
 .midnight-expert/
+
+# Local Claude Code settings
+.claude/

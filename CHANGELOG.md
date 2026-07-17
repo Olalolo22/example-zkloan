@@ -81,8 +81,9 @@ version-agnostic subpaths:
 | `@midnight-ntwrk/ledger-v8` | `@midnight-ntwrk/midnight-js-protocol/ledger` |
 | `@midnight-ntwrk/compact-js` | `@midnight-ntwrk/midnight-js-protocol/compact-js` |
 
-`@midnight-ntwrk/compact-runtime` is retained as a direct dependency because the
-compiler-generated contract code (`src/managed/.../contract/index.js`) imports it directly.
+`@midnight-ntwrk/compact-runtime` is declared only in `contract/package.json`, because the
+compiler-generated contract code (`src/managed/.../contract/index.js`) imports it directly;
+no other workspace declares it (hand-written code resolves it via `midnight-js-protocol`).
 
 **Wallet SDK consolidated under the `@midnight-ntwrk/wallet-sdk` barrel** (v1.1.0). The
 CLI's five individual `wallet-sdk-*` subpackage imports (`-hd`, `-facade`, `-shielded`,

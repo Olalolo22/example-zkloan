@@ -24,7 +24,7 @@ The project targets ledger v8.1 and the **4.1.x Midnight JS SDK**. See [Midnight
 |---|---|
 | `@midnight-ntwrk/midnight-js-protocol` (provides `/ledger`, `/compact-runtime`, `/compact-js` subpaths) | 4.1.1 |
 | ↳ wrapped ledger (`@midnight-ntwrk/midnight-js-protocol/ledger`) | 8.1.0 |
-| `@midnight-ntwrk/compact-runtime` (direct dep — imported by generated contract code) | 0.16.0 |
+| `@midnight-ntwrk/compact-runtime` (declared only in `contract/` — its generated code imports it; everything else resolves it via `midnight-js-protocol`) | 0.16.0 |
 | `@midnight-ntwrk/midnight-js-*` | 4.1.1 |
 | `@midnight-ntwrk/dapp-connector-api` | 4.0.1 |
 | `@midnight-ntwrk/wallet-sdk` (barrel — replaces `wallet-sdk-facade`/`-hd`/`-shielded`/`-dust-wallet`/`-unshielded-wallet`) | 1.2.0 |

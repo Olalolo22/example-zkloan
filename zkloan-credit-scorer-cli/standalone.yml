@@ -1,22 +1,21 @@
 services:
   proof-server:
     container_name: 'zkloan-proof-server'
-    image: 'midnightntwrk/proof-server:8.0.3'
+    image: 'midnightntwrk/proof-server:8.1.0'
     command: ['midnight-proof-server -v']
     ports:
       - '127.0.0.1:6300:6300'
     environment:
       RUST_BACKTRACE: 'full'
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:6300/version']
-      interval: 10s
-      timeout: 5s
-      retries: 20
-      start_period: 10s
+    # no healthcheck: the 8.1.x image is distroless (no curl or shell to exec);
+    # readiness is observable via GET /version on port 6300 from the host
 
   indexer:
     container_name: 'zkloan-indexer'
-    image: 'midnightntwrk/indexer-standalone:4.0.1'
+    image: 'midnightntwrk/indexer-standalone:4.3.3'
+    # on a cold start the spo-indexer sub-process exits if the node has not
+    # produced its first block yet; a retry after the node ticks over succeeds
+    restart: 'on-failure:10'
     env_file: standalone.env.example
     ports:
       - '127.0.0.1:8088:8088'
@@ -34,7 +33,7 @@ services:
         condition: service_healthy
 
   node:
-    image: 'midnightntwrk/midnight-node:0.22.3'
+    image: 'midnightntwrk/midnight-node:1.0.0'
     container_name: 'zkloan-node'
     ports:
       - '127.0.0.1:9944:9944'

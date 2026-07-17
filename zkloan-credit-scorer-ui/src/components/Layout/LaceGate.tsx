@@ -5,6 +5,8 @@ import { tokens } from '../../config/theme';
 const CHROME_STORE_URL =
   'https://chromewebstore.google.com/detail/lace/gafhhkghbfjjkeiendhlofajokpaflmk';
 
+const PREPROD_FAUCET_URL = 'https://midnight-tmnight-preprod.nethermind.dev/';
+
 type Status = 'checking' | 'found' | 'missing';
 
 export const LaceGate: React.FC<React.PropsWithChildren> = ({ children }) => {
@@ -142,7 +144,18 @@ export const LaceGate: React.FC<React.PropsWithChildren> = ({ children }) => {
         </li>
         <li>Pin the extension and set up or import a wallet.</li>
         <li>In Lace, switch the network to <strong style={{ color: tokens.ink }}>Preprod</strong>.</li>
-        <li>Fund it with tDUST from the Preprod faucet.</li>
+        <li>
+          Fund it with tDUST from the{' '}
+          <Link
+            href={PREPROD_FAUCET_URL}
+            target="_blank"
+            rel="noopener"
+            sx={{ color: tokens.accent }}
+          >
+            Preprod faucet
+          </Link>
+          .
+        </li>
         <li>Reload this page.</li>
       </Box>
 

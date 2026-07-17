@@ -20,6 +20,9 @@
       "default": "./dist/managed/zkloan-credit-scorer/contract/index.js"
     }
   },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "^0.16.0"
+  },
   "scripts": {
     "compact": "compact compile src/zkloan-credit-scorer.compact src/managed/zkloan-credit-scorer",
     "test": "vitest run",

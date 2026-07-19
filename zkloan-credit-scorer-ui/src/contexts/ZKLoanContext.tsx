@@ -181,9 +181,14 @@ export const ZKLoanProvider: React.FC<Readonly<ZKLoanProviderProps>> = ({ logger
     const userSecretKey = new Uint8Array(32);
     crypto.getRandomValues(userSecretKey);
     return {
-      creditScore: 720n,
-      monthlyIncome: 2500n,
-      monthsAsCustomer: 24n,
+      inflow0: 5000n,
+      inflow1: 5200n,
+      inflow2: 5100n,
+      inflow3: 5050n,
+      inflow4: 5300n,
+      inflow5: 5150n,
+      liquidAssets: 15000n,
+      monthlyDebtService: 1000n,
       attestationSignature: { announcement: { x: 0n, y: 0n }, response: 0n },
       attestationProviderId: 0n,
       userSecretKey,
@@ -541,9 +546,14 @@ export const ZKLoanProvider: React.FC<Readonly<ZKLoanProviderProps>> = ({ logger
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        creditScore: Number(privateState.creditScore),
-        monthlyIncome: Number(privateState.monthlyIncome),
-        monthsAsCustomer: Number(privateState.monthsAsCustomer),
+        inflow0: Number(privateState.inflow0),
+        inflow1: Number(privateState.inflow1),
+        inflow2: Number(privateState.inflow2),
+        inflow3: Number(privateState.inflow3),
+        inflow4: Number(privateState.inflow4),
+        inflow5: Number(privateState.inflow5),
+        liquidAssets: Number(privateState.liquidAssets),
+        monthlyDebtService: Number(privateState.monthlyDebtService),
         userPubKeyHash: userPubKeyHash.toString(),
       }),
     });

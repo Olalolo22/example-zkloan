@@ -29,9 +29,14 @@ export struct LoanApplication {
     status: LoanStatus;
 }
 struct Applicant {
-    creditScore: Uint<16>;
-    monthlyIncome: Uint<16>;
-    monthsAsCustomer: Uint<16>;
+    inflow0: Uint<32>;
+    inflow1: Uint<32>;
+    inflow2: Uint<32>;
+    inflow3: Uint<32>;
+    inflow4: Uint<32>;
+    inflow5: Uint<32>;
+    liquidAssets: Uint<32>;
+    monthlyDebtService: Uint<32>;
 }
 
 // Every browser/CLI instance holds a single 32-byte secret in private state.
@@ -120,34 +125,56 @@ circuit evaluateApplicant(userPubKeyHash: Field): [Uint<16>, LoanStatus] {
     assert(providers.member(disclose(providerId)), "Attestation provider not registered");
     const providerPk = providers.lookup(disclose(providerId));
 
-    // Build signed message: [creditScore, monthlyIncome, monthsAsCustomer, userPubKeyHash]
-    const msg: Vector<4, Field> = [
-        profile.creditScore as Field,
-        profile.monthlyIncome as Field,
-        profile.monthsAsCustomer as Field,
+    // Build signed message: [inflows..., liquidAssets, debtService, userPubKeyHash]
+    const msg: Vector<9, Field> = [
+        profile.inflow0 as Field,
+        profile.inflow1 as Field,
+        profile.inflow2 as Field,
+        profile.inflow3 as Field,
+        profile.inflow4 as Field,
+        profile.inflow5 as Field,
+        profile.liquidAssets as Field,
+        profile.monthlyDebtService as Field,
         userPubKeyHash
     ];
 
     // Verify attestation signature
-    Schnorr_schnorrVerify<4>(msg, signature, providerPk);
+    Schnorr_schnorrVerify<9>(msg, signature, providerPk);
 
-    // Tier 1: Best applicants
-    if (profile.creditScore >= 700 && profile.monthlyIncome >= 2000 && profile.monthsAsCustomer >= 24) {
-        return [10000, LoanStatus.Approved];
-    }
-    // Tier 2: Good applicants
-    else if (profile.creditScore >= 600 && profile.monthlyIncome >= 1500) {
-        return [7000, LoanStatus.Approved];
-    }
-    // Tier 3: Basic eligibility
-    else if (profile.creditScore >= 580) {
-        return [3000, LoanStatus.Approved];
-    }
-    // If none of the above conditions were met, the applicant is rejected.
-    else {
-        return [0, LoanStatus.Rejected];
+    // Compute sum - Let the compiler infer the exact upper bound!
+    const sum = (profile.inflow0 as Uint<64>) + (profile.inflow1 as Uint<64>) + 
+                (profile.inflow2 as Uint<64>) + (profile.inflow3 as Uint<64>) + 
+                (profile.inflow4 as Uint<64>) + (profile.inflow5 as Uint<64>);
+
+    // Stability: inflow * 60 >= sum * 7
+    const thresholdSum = sum * 7;
+    const isStable: Boolean = 
+        ((profile.inflow0 as Uint<64>) * 60) >= thresholdSum &&
+        ((profile.inflow1 as Uint<64>) * 60) >= thresholdSum &&
+        ((profile.inflow2 as Uint<64>) * 60) >= thresholdSum &&
+        ((profile.inflow3 as Uint<64>) * 60) >= thresholdSum &&
+        ((profile.inflow4 as Uint<64>) * 60) >= thresholdSum &&
+        ((profile.inflow5 as Uint<64>) * 60) >= thresholdSum;
+
+    // Liquidity Buffer checks
+    const liq = profile.liquidAssets as Uint<64>;
+    const debt = profile.monthlyDebtService as Uint<64>;
+    const bufferRatioA: Boolean = liq >= (3 * debt);
+    const bufferRatioB: Boolean = liq >= (2 * debt);
+
+    // No distress: trailing 3 periods > 0
+    const noDistress: Boolean = profile.inflow3 > 0 && profile.inflow4 > 0 && profile.inflow5 > 0;
+
+    // Assign Tier amounts
+    if (noDistress && bufferRatioA && isStable) {
+        return [10000, LoanStatus.Approved]; // Tier A
+    } else if (noDistress && bufferRatioB && isStable) {
+        return [5000, LoanStatus.Approved];  // Tier B
+    } else {
+        return [0, LoanStatus.Rejected];     // Tier C
     }
 }
+
 
 circuit createLoan(requester: Bytes<32>, amountRequested: Uint<16>, topTierAmount: Uint<16>, status: LoanStatus): [] {
     const authorizedAmount = amountRequested > topTierAmount ? topTierAmount : amountRequested;
@@ -255,7 +282,7 @@ export circuit changePin(oldPin: Uint<16>, newPin: Uint<16>): [] {
 export pure circuit schnorrChallenge(
     ann_x: Field, ann_y: Field,
     pk_x: Field, pk_y: Field,
-    msg: Vector<4, Field>
+    msg: Vector<9, Field>
 ): Field {
-    return Schnorr_schnorrChallenge(ann_x, ann_y, pk_x, pk_y, msg);
+    return Schnorr_schnorrChallenge<9>(ann_x, ann_y, pk_x, pk_y, msg);
 }

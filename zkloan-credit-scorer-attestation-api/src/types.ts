@@ -1,7 +1,12 @@
 export interface AttestationRequest {
-  creditScore: number;
-  monthlyIncome: number;
-  monthsAsCustomer: number;
+  inflow0: number;
+  inflow1: number;
+  inflow2: number;
+  inflow3: number;
+  inflow4: number;
+  inflow5: number;
+  liquidAssets: number;
+  monthlyDebtService: number;
   userPubKeyHash: string; // bigint as decimal string
 }
 
@@ -11,9 +16,14 @@ export interface AttestationResponse {
     response: string;
   };
   message: {
-    creditScore: string;
-    monthlyIncome: string;
-    monthsAsCustomer: string;
+    inflow0: string;
+    inflow1: string;
+    inflow2: string;
+    inflow3: string;
+    inflow4: string;
+    inflow5: string;
+    liquidAssets: string;
+    monthlyDebtService: string;
     userPubKeyHash: string;
   };
 }

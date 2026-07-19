@@ -1,89 +1,89 @@
-import restify from 'restify';
+import { createServer as createHttpServer } from 'http';
 import { signCreditData, getPublicKey } from './signing.js';
-import type { AttestationRequest, AttestationResponse, ProviderInfoResponse, HealthResponse } from './types.js';
 import type { JubjubPoint } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
 
-export function createServer(providerSk: bigint, providerId: number): restify.Server {
-  const server = restify.createServer({ name: 'zkloan-attestation-api' });
-  server.use(restify.plugins.bodyParser());
-
-  // CORS support for browser-based UI
-  server.pre((req: restify.Request, res: restify.Response, next: restify.Next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type');
-    if (req.method === 'OPTIONS') {
-      res.send(204);
-      return next(false);
-    }
-    return next();
-  });
-
+export function createServer(providerSk: bigint, providerId: number) {
   const providerPk: JubjubPoint = getPublicKey(providerSk);
 
-  server.post('/attest', (req: restify.Request, res: restify.Response, next: restify.Next) => {
-    try {
-      const body = req.body as AttestationRequest;
+  const handler = (req: any, res: any) => {
+    const cors = () => {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    };
 
-      if (body.creditScore == null || body.monthlyIncome == null ||
-          body.monthsAsCustomer == null || body.userPubKeyHash == null) {
-        res.send(400, { error: 'Missing required fields: creditScore, monthlyIncome, monthsAsCustomer, userPubKeyHash' });
-        return next();
-      }
+    cors();
 
-      const userPubKeyHash = BigInt(body.userPubKeyHash);
-
-      const signature = signCreditData(
-        providerSk,
-        body.creditScore,
-        body.monthlyIncome,
-        body.monthsAsCustomer,
-        userPubKeyHash,
-      );
-
-      const response: AttestationResponse = {
-        signature: {
-          announcement: {
-            x: signature.announcement.x.toString(),
-            y: signature.announcement.y.toString(),
-          },
-          response: signature.response.toString(),
-        },
-        message: {
-          creditScore: body.creditScore.toString(),
-          monthlyIncome: body.monthlyIncome.toString(),
-          monthsAsCustomer: body.monthsAsCustomer.toString(),
-          userPubKeyHash: userPubKeyHash.toString(),
-        },
-      };
-
-      res.send(200, response);
-    } catch (err: any) {
-      res.send(500, { error: err.message });
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
+      return;
     }
-    return next();
-  });
 
-  server.get('/provider-info', (_req: restify.Request, res: restify.Response, next: restify.Next) => {
-    const response: ProviderInfoResponse = {
-      providerId,
-      publicKey: {
-        x: providerPk.x.toString(),
-        y: providerPk.y.toString(),
-      },
+    const parseBody = (cb: (body: any) => void) => {
+      let data = '';
+      req.on('data', (chunk: any) => (data += chunk));
+      req.on('end', () => {
+        try { cb(JSON.parse(data)); }
+        catch { cb({}); }
+      });
     };
-    res.send(200, response);
-    return next();
-  });
 
-  server.get('/health', (_req: restify.Request, res: restify.Response, next: restify.Next) => {
-    const response: HealthResponse = {
-      status: 'ok',
-      providerId,
+    const send = (status: number, body: any) => {
+      const json = JSON.stringify(body);
+      res.writeHead(status, { 'Content-Type': 'application/json' });
+      res.end(json);
     };
-    res.send(200, response);
-    return next();
-  });
 
-  return server;
+    if (req.method === 'POST' && req.url === '/attest') {
+      parseBody((body) => {
+        try {
+          if (body.inflow0 == null || body.userPubKeyHash == null) {
+            send(400, { error: 'Missing required fields' });
+            return;
+          }
+          const userPubKeyHash = BigInt(body.userPubKeyHash);
+          const signature = signCreditData(
+            providerSk,
+            body.inflow0, body.inflow1, body.inflow2,
+            body.inflow3, body.inflow4, body.inflow5,
+            body.liquidAssets, body.monthlyDebtService,
+            userPubKeyHash,
+          );
+          send(200, {
+            signature: {
+              announcement: {
+                x: signature.announcement.x.toString(),
+                y: signature.announcement.y.toString(),
+              },
+              response: signature.response.toString(),
+            },
+          });
+        } catch (err: any) {
+          send(500, { error: err.message });
+        }
+      });
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/provider-info') {
+      send(200, {
+        providerId,
+        publicKey: {
+          x: providerPk.x.toString(),
+          y: providerPk.y.toString(),
+        },
+      });
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/health') {
+      send(200, { status: 'ok', providerId });
+      return;
+    }
+
+    send(404, { error: 'Not found' });
+  };
+
+  return createHttpServer(handler);
 }

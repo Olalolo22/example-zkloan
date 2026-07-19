@@ -10,10 +10,32 @@ import {
   Backdrop,
   Stack,
   InputAdornment,
+  Select,
+  MenuItem,
+  InputLabel,
+  FormControl,
 } from '@mui/material';
 import { useZKLoanContext } from '../hooks';
 import { SectionHeader } from './Layout/SectionHeader';
 import { tokens } from '../config/theme';
+
+const SCENARIOS = {
+  prime: {
+    inflows: [5000n, 5200n, 5100n, 5050n, 5300n, 5150n],
+    liquidAssets: 15000n,
+    monthlyDebtService: 1000n
+  },
+  standard: {
+    inflows: [3000n, 2500n, 3200n, 2800n, 3100n, 2900n],
+    liquidAssets: 5000n,
+    monthlyDebtService: 1000n
+  },
+  declined: {
+    inflows: [2000n, 0n, 1500n, 1000n, 0n, 800n],
+    liquidAssets: 1000n,
+    monthlyDebtService: 1500n
+  }
+};
 
 // Walk the Error.cause chain and concatenate messages so the UI surfaces
 // the real failure rather than midnight-js's generic wrapper.
@@ -22,7 +44,6 @@ function describeNonError(o: unknown): string {
   if (typeof o === 'string') return o;
   if (typeof o !== 'object') return String(o);
   const anyObj = o as Record<string, unknown>;
-  // Common shapes from GraphQL, substrate, wallet, etc.
   const candidates = [
     anyObj.message,
     anyObj.reason,
@@ -58,7 +79,6 @@ function formatError(err: unknown): string {
     }
     if (typeof current === 'object' && current !== null) {
       const o = current as Record<string, unknown>;
-      // Effect.ts Cause wrapper: { _id: 'Cause', _tag: 'Fail', failure: {...} }
       if (o._id === 'Cause' && o.failure) {
         current = o.failure;
         continue;
@@ -80,7 +100,6 @@ function formatError(err: unknown): string {
     break;
   }
   if (messages.length === 0) return 'Failed to submit loan request';
-  // Dedupe consecutive duplicates
   const out: string[] = [];
   for (const m of messages) {
     if (out[out.length - 1] !== m) out.push(m);
@@ -89,7 +108,7 @@ function formatError(err: unknown): string {
 }
 
 export const LoanRequestForm: React.FC = () => {
-  const { requestLoan, flowMessage, secretPin } = useZKLoanContext();
+  const { requestLoan, flowMessage, secretPin, privateState, setPrivateState } = useZKLoanContext();
 
   const [amount, setAmount] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -128,7 +147,6 @@ export const LoanRequestForm: React.FC = () => {
       setResult({ success: true, message: 'Loan request submitted successfully.' });
       setAmount('');
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error('requestLoan failed', error);
       setResult({
         success: false,
@@ -188,62 +206,80 @@ export const LoanRequestForm: React.FC = () => {
           </Alert>
         )}
 
-        <Stack
-          component="form"
-          onSubmit={handleSubmit}
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={1.5}
-          sx={{
-            mt: 4,
-            pt: 4,
-            borderTop: `1px solid ${tokens.hairline}`,
-            alignItems: 'stretch',
-          }}
-        >
-          <TextField
-            fullWidth
-            size="small"
-            label="Loan amount"
-            placeholder="1 – 10,000"
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Typography
-                    sx={{
-                      fontFamily: '"Fraunces", serif',
-                      fontStyle: 'italic',
-                      fontSize: '1.05rem',
-                      color: tokens.inkDim,
-                      fontVariationSettings: '"opsz" 32',
-                    }}
-                  >
-                    $
-                  </Typography>
-                </InputAdornment>
-              ),
-            }}
-            inputProps={{ min: 1, max: 10000 }}
-            sx={{
-              '& input': {
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: '1.05rem',
-                fontFeatureSettings: '"tnum"',
-              },
-            }}
-          />
-          <Button
-            type="submit"
-            variant="contained"
-            onClick={handleSubmit}
-            disabled={isSubmitting || !amount || !isPinValid}
-            sx={{ minWidth: 180, whiteSpace: 'nowrap' }}
-          >
-            Request loan →
-          </Button>
+        <Stack spacing={3} sx={{ mt: 4, pt: 4, borderTop: `1px solid ${tokens.hairline}` }}>
+          <FormControl fullWidth size="small">
+            <InputLabel>Borrower Scenario</InputLabel>
+            <Select
+              label="Borrower Scenario"
+              defaultValue="prime"
+              onChange={(e) => {
+                const key = e.target.value as keyof typeof SCENARIOS;
+                const data = SCENARIOS[key];
+                setPrivateState({
+                  ...privateState,
+                  inflow0: data.inflows[0],
+                  inflow1: data.inflows[1],
+                  inflow2: data.inflows[2],
+                  inflow3: data.inflows[3],
+                  inflow4: data.inflows[4],
+                  inflow5: data.inflows[5],
+                  liquidAssets: data.liquidAssets,
+                  monthlyDebtService: data.monthlyDebtService,
+                });
+              }}
+            >
+              <MenuItem value="prime">Prime Borrower (Tier A) - High Stability</MenuItem>
+              <MenuItem value="standard">Standard Borrower (Tier B) - Mid Stability</MenuItem>
+              <MenuItem value="declined">Distressed Borrower (Declined) - Missing Inflows</MenuItem>
+            </Select>
+          </FormControl>
+
+          <Stack component="form" onSubmit={handleSubmit} direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="stretch">
+            <TextField
+              fullWidth
+              size="small"
+              label="Loan amount"
+              placeholder="1 – 10,000"
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Typography
+                      sx={{
+                        fontFamily: '"Fraunces", serif',
+                        fontStyle: 'italic',
+                        fontSize: '1.05rem',
+                        color: tokens.inkDim,
+                        fontVariationSettings: '"opsz" 32',
+                      }}
+                    >
+                      $
+                    </Typography>
+                  </InputAdornment>
+                ),
+              }}
+              inputProps={{ min: 1, max: 10000 }}
+              sx={{
+                '& input': {
+                  fontFamily: '"IBM Plex Mono", monospace',
+                  fontSize: '1.05rem',
+                  fontFeatureSettings: '"tnum"',
+                },
+              }}
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              onClick={handleSubmit}
+              disabled={isSubmitting || !amount || !isPinValid}
+              sx={{ minWidth: 180, whiteSpace: 'nowrap' }}
+            >
+              Request loan →
+            </Button>
+          </Stack>
         </Stack>
       </CardContent>
     </Card>

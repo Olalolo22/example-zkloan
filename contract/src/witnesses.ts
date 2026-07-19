@@ -30,9 +30,14 @@ export type SchnorrSignature = {
 // at deploy time holds the admin role; everyone else fails the equality
 // assertion inside the proof.
 export type ZKLoanCreditScorerPrivateState = {
-  creditScore: bigint;
-  monthlyIncome: bigint;
-  monthsAsCustomer: bigint;
+  inflow0: bigint;
+  inflow1: bigint;
+  inflow2: bigint;
+  inflow3: bigint;
+  inflow4: bigint;
+  inflow5: bigint;
+  liquidAssets: bigint;
+  monthlyDebtService: bigint;
   attestationSignature: SchnorrSignature;
   attestationProviderId: bigint;
   userSecretKey: Uint8Array;
@@ -45,14 +50,19 @@ export const witnesses = {
     privateState,
   }: WitnessContext<Ledger, ZKLoanCreditScorerPrivateState>): [
     ZKLoanCreditScorerPrivateState,
-    [{ creditScore: bigint; monthlyIncome: bigint; monthsAsCustomer: bigint }, SchnorrSignature, bigint],
+    [{ inflow0: bigint; inflow1: bigint; inflow2: bigint; inflow3: bigint; inflow4: bigint; inflow5: bigint; liquidAssets: bigint; monthlyDebtService: bigint }, SchnorrSignature, bigint],
   ] => [
     privateState,
     [
       {
-        creditScore: privateState.creditScore,
-        monthlyIncome: privateState.monthlyIncome,
-        monthsAsCustomer: privateState.monthsAsCustomer,
+        inflow0: privateState.inflow0,
+        inflow1: privateState.inflow1,
+        inflow2: privateState.inflow2,
+        inflow3: privateState.inflow3,
+        inflow4: privateState.inflow4,
+        inflow5: privateState.inflow5,
+        liquidAssets: privateState.liquidAssets,
+        monthlyDebtService: privateState.monthlyDebtService,
       },
       privateState.attestationSignature,
       privateState.attestationProviderId,

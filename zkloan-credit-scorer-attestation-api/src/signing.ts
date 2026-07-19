@@ -46,15 +46,25 @@ export function sign(
 
 export function signCreditData(
   sk: bigint,
-  creditScore: number,
-  monthlyIncome: number,
-  monthsAsCustomer: number,
+  inflow0: number,
+  inflow1: number,
+  inflow2: number,
+  inflow3: number,
+  inflow4: number,
+  inflow5: number,
+  liquidAssets: number,
+  monthlyDebtService: number,
   userPubKeyHash: bigint,
 ): SchnorrSignature {
   const msg: bigint[] = [
-    BigInt(creditScore),
-    BigInt(monthlyIncome),
-    BigInt(monthsAsCustomer),
+    BigInt(inflow0),
+    BigInt(inflow1),
+    BigInt(inflow2),
+    BigInt(inflow3),
+    BigInt(inflow4),
+    BigInt(inflow5),
+    BigInt(liquidAssets),
+    BigInt(monthlyDebtService),
     userPubKeyHash,
   ];
   return sign(sk, msg);
